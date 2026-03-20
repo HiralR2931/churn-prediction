@@ -167,7 +167,3 @@ jupyter notebook NetflixdataTesting.ipynb
 MS Data Analytics Engineering · Northeastern University
 
 ---
-
-## License
-
-This project is for educational and portfolio purposes.
