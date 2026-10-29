@@ -1,0 +1,14 @@
+# Datasets are downloaded, not versioned
+*.csv
+!medicare-churn/outputs/reports/*.csv
+
+# Python / notebooks
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# OS and local tool settings
+.DS_Store
+.claude/

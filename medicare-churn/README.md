@@ -7,6 +7,8 @@ Enrollment data (county level, **2013–2025**). The project cleans and validate
 Random Forest churn classifier, corroborates its drivers with statistical
 tests, and surfaces the results in Plotly dashboards.
 
+*Hackathon project.* Part of the [churn-prediction](../) repo.
+
 **Stack:** Python · pandas · scikit-learn · SciPy · Plotly · PySpark (Databricks)
 
 ![Churn drivers and segment churn rates](docs/results.png)
@@ -50,7 +52,7 @@ Composition ratios (share of total beneficiaries) plus short-term dynamics:
 ## Project layout
 
 ```
-medicare/
+medicare-churn/
 ├── run_pipeline.py              # end-to-end orchestrator
 ├── src/
 │   ├── config.py                # paths, churn window, feature list, RF params
