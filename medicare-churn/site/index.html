@@ -162,7 +162,7 @@
   <div class="links">
     <a href="#stall">The stall</a><a href="#map">Map</a><a href="#who">Who switches</a>
     <a href="#states">States</a><a href="#forecast">Forecasting</a><a href="#outlook">2026 outlook</a>
-    <a href="#decline">Original model</a><a href="#method">Method</a>
+    <a href="#decline">Original model</a><a href="#method">Method</a><a href="netflix/">Netflix report</a>
   </div>
   <button class="theme" id="theme" type="button" aria-label="Toggle color theme">Theme</button>
 </div></nav>
@@ -299,7 +299,7 @@
   </div></div>
 </section>
 
-<footer>Built by Hiral Rana · Data: <a href="https://data.cms.gov/summary-statistics-on-beneficiary-enrollment/medicare-and-medicaid-reports/medicare-monthly-enrollment">CMS Medicare Monthly Enrollment</a></footer>
+<footer>Built by Hiral Rana · Data: <a href="https://data.cms.gov/summary-statistics-on-beneficiary-enrollment/medicare-and-medicaid-reports/medicare-monthly-enrollment">CMS Medicare Monthly Enrollment</a> · <a href="netflix/">The Six-Line Churn Rule (Netflix)</a></footer>
 
 <div id="tip" role="tooltip"></div>
 
@@ -677,11 +677,22 @@ function decline() {
 /* ---------- boot ---------- */
 R.forecastByFips = Object.fromEntries(R.forecast.map(r => [r.fips, r]));
 mapMode = R.map.years[R.map.years.length - 1];
-function renderAll() { enroll(); wave(); drawMap(); saturation(); correlates(); states(); backtest(); decline(); }
-hero(); mapButtons(); outlook(); renderAll();
+function renderAll() {
+  if (!document.documentElement.clientWidth) return;   // hidden pane: wait for a width
+  enroll(); wave(); drawMap(); saturation(); correlates(); states(); backtest(); decline();
+}
+hero(); mapButtons(); outlook();
 fetch(MAP_TOPO).then(r => r.json()).then(t => { topo = t; drawMap(); })
   .catch(() => { document.getElementById("c-map").innerHTML = '<div class="loading">The county map could not be loaded.</div>'; });
-let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(renderAll, 150); });
+// Draw now if the page has a width; redraw when the width changes (including a
+// pane that was hidden at load and gets shown later).
+let rt, lastW = document.documentElement.clientWidth;
+renderAll();
+new ResizeObserver(() => {
+  const w = document.documentElement.clientWidth;
+  if (w === lastW) return;
+  lastW = w; clearTimeout(rt); rt = setTimeout(renderAll, 120);
+}).observe(document.documentElement);
 </script>
 </body>
 </html>

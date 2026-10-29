@@ -1,0 +1,7 @@
+condition,label,share_customers,churn_if_true,churn_if_false
+watch_lt5,Under 5 watch hours,0.3536,0.8399321266968326,0.3186881188118812
+watch_5_20,5 to under 20 watch hours,0.469,0.4213219616204691,0.5751412429378531
+login_gt30,Last login over 30 days ago,0.4938,0.7509113001215066,0.2611615962070328
+basic_plan,Basic plan,0.3322,0.6183022275737508,0.44564240790655885
+profiles_lt4,Fewer than 4 profiles,0.5934,0.5797101449275363,0.3910477127397934
+pay_crypto_gift,Pays by crypto or gift card,0.3942,0.5875190258751902,0.44800264113568833

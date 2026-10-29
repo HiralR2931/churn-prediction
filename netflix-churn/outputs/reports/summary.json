@@ -1,0 +1,44 @@
+{
+  "customers": 5000,
+  "churn_rate": 0.503,
+  "features": 12,
+  "features_no_effect": [
+    "favorite_genre",
+    "region",
+    "device",
+    "gender",
+    "age"
+  ],
+  "monthly_fee_fixed_by_plan": true,
+  "avg_watch_identity_share": 1.0,
+  "rows_changed_by_notebook_div10": 57,
+  "cutoff": 7,
+  "points": {
+    "watch_lt5": 6,
+    "watch_5_20": 3,
+    "login_gt30": 3,
+    "basic_plan": 1,
+    "profiles_lt4": 1,
+    "pay_crypto_gift": 1
+  },
+  "max_points": 12,
+  "low_points_to": 4,
+  "low_customers": 1406,
+  "low_churned": 1,
+  "top_points_from": 9,
+  "top_customers": 1009,
+  "top_churned": 1009,
+  "scorecard_accuracy": 0.9553,
+  "best_model": "Gradient boosting",
+  "best_accuracy": 0.9907,
+  "drivers_only_accuracy": 0.9798,
+  "logistic_accuracy": 0.8934,
+  "gb_errors_total": 50,
+  "gb_errors_near_cutoff": 49,
+  "near_cutoff_range": [
+    5,
+    9
+  ],
+  "high_tiers_share_of_churners": 0.9638,
+  "high_tiers_share_of_customers": 0.5102
+}

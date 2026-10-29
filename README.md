@@ -8,9 +8,11 @@ individual Netflix subscribers.
 | Project | Scale | Data | Model | Headline result |
 |---|---|---|---|---|
 | [The Medicare Advantage Stall](medicare-churn/) · [interactive report](https://hiralr2931.github.io/churn-prediction/) | 3,236 U.S. counties, 2013–2025 | CMS Medicare Monthly Enrollment (564k rows) | Walk-forward backtest of 4 forecasters, Random Forest, PySpark on Databricks | MA passed 50% of beneficiaries; yearly switching fell from +3.1 to +0.9 pp; a county + state blend beats gradient boosting (Spearman 0.53 vs 0.47) |
-| [Netflix Customer Churn](netflix-churn/) | 5,000 subscribers | Kaggle Netflix churn dataset (14 features) | 6 classifiers benchmarked | Gradient Boosting 99.1% test accuracy |
+| [The Six-Line Churn Rule](netflix-churn/) · [interactive report](https://hiralr2931.github.io/churn-prediction/netflix/) | 5,000 subscribers | Kaggle Netflix churn dataset (synthetic, 12 features) | 6 classifiers + a points scorecard, repeated 5-fold CV | A six-condition scorecard matches 95.5% of outcomes; gradient boosting reaches 99.1%, and only wins near the scorecard's cut-off |
 
 ![Medicare Advantage passed Original Medicare while the yearly switching wave fell](medicare-churn/docs/01_tipping_point.png)
+
+![Netflix churn drops in steps at 5 and 20 watch hours and jumps after 30 days without a login](netflix-churn/docs/01_cliffs.png)
 
 ## What's in each folder
 
@@ -23,11 +25,13 @@ interactive D3 report with a county map. An earlier net-decline Random Forest
 is kept alongside, with a feature bug fixed. The cleaning and feature stage also
 runs in PySpark on Databricks with Delta tables.
 
-**[`netflix-churn/`](netflix-churn/)** is a notebook project. It covers EDA,
-encoding, scaling and outlier treatment, then compares Logistic Regression,
-KNN, Naive Bayes, Decision Tree, Random Forest and Gradient Boosting, with
-feature importance for the churn drivers. Written PDF reports for the data and
-modelling stages are included.
+**[`netflix-churn/`](netflix-churn/)** is a pipeline that decodes the rule behind
+the dataset's churn label. It finds the cliffs at 5 and 20 watch hours and 30 days
+without a login, and shows that demographics carry no signal. It then fits a
+six-condition points scorecard and benchmarks it against six classifiers on the same
+repeated cross-validation, and publishes an interactive report with a scorecard
+calculator. It also fixes a cleaning step in the original notebook that corrupted 57
+rows. The notebook and PDF reports are kept.
 
 ## Run them
 
@@ -41,7 +45,13 @@ python run_pipeline.py
 
 For Netflix, download `netflix_customer_churn.csv` from
 [Kaggle](https://www.kaggle.com/datasets/abdulwadood11220/netflix-customer-churn-dataset)
-and open `netflix-churn/NetflixdataTesting.ipynb` in Jupyter or Google Colab.
+into `netflix-churn/data/`, then:
+
+```bash
+cd ../netflix-churn
+pip install -r requirements.txt
+python run_pipeline.py
+```
 
 Neither dataset is stored in this repo.
 

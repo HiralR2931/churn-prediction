@@ -1,9 +1,9 @@
-name: Publish Medicare report
+name: Publish reports
 
 on:
   push:
     branches: [main]
-    paths: ["medicare-churn/site/**", ".github/workflows/pages.yml"]
+    paths: ["medicare-churn/site/**", "netflix-churn/site/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -23,9 +23,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Medicare report at the site root, Netflix report under /netflix/.
+      - name: Assemble site
+        run: |
+          mkdir -p _site/netflix
+          cp -R medicare-churn/site/. _site/
+          cp -R netflix-churn/site/. _site/netflix/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: medicare-churn/site
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

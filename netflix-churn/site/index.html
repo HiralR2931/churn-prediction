@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Six-Line Churn Rule</title>
+<meta name="description" content="What really drives churn in the Kaggle Netflix customer dataset: a six-condition scorecard that matches 95.5% of outcomes, benchmarked against six classifiers.">
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --base: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --ma: #2a78d6; --om: #eb6834; --aqua: #1baf7a; --yellow: #eda100; --red: #e34948;
+    --mid: #f0efec; --nodata: #e6e5df; --pos-end: #0d366b; --neg-end: #9e2a2b;
+    --wash: rgba(42,120,214,0.10); --chip: #f0efec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --base: #383835; --border: rgba(255,255,255,0.10);
+      --ma: #3987e5; --om: #d95926; --aqua: #199e70; --yellow: #c98500; --red: #e66767;
+      --mid: #383835; --nodata: #232322; --pos-end: #b7d3f6; --neg-end: #f4b3b2;
+      --wash: rgba(57,135,229,0.16); --chip: #262624;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --base: #383835; --border: rgba(255,255,255,0.10);
+    --ma: #3987e5; --om: #d95926; --aqua: #199e70; --yellow: #c98500; --red: #e66767;
+    --mid: #383835; --nodata: #232322; --pos-end: #b7d3f6; --neg-end: #f4b3b2;
+    --wash: rgba(57,135,229,0.16); --chip: #262624;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--ma); }
+  nav.top {
+    position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--page) 88%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--border);
+  }
+  nav.top .in { max-width: 1120px; margin: 0 auto; padding: 10px 24px; display: flex; gap: 18px; align-items: center; }
+  nav.top .brand { font-weight: 650; font-size: 14px; white-space: nowrap; }
+  nav.top .links { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: none; flex: 1; }
+  nav.top .links a { color: var(--ink2); text-decoration: none; font-size: 13.5px; white-space: nowrap; }
+  nav.top .links a:hover { color: var(--ink); }
+  button.theme {
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink2);
+    border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+
+  header.hero { max-width: 1120px; margin: 0 auto; padding: 72px 24px 40px; }
+  .eyebrow { color: var(--ink2); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 18px; }
+  h1 { font-size: clamp(34px, 5.4vw, 60px); line-height: 1.05; letter-spacing: -0.025em; margin: 0 0 22px; max-width: 16ch; font-weight: 700; }
+  h1 em { font-style: normal; color: var(--ma); }
+  .lede { font-size: clamp(17px, 2vw, 20px); color: var(--ink2); max-width: 62ch; margin: 0; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border);
+           border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-top: 44px; }
+  .tile { background: var(--surface); padding: 20px 22px; }
+  .tile .label { font-size: 13px; color: var(--ink2); }
+  .tile .value { font-size: 34px; font-weight: 650; letter-spacing: -0.02em; margin: 4px 0 2px; }
+  .tile.hero-tile .value { font-size: 52px; line-height: 1.05; }
+  .tile .note { font-size: 13px; color: var(--muted); }
+
+  section.ch { max-width: 1120px; margin: 0 auto; padding: 56px 24px 8px; }
+  .ch-head { display: grid; grid-template-columns: 64px 1fr; gap: 0 8px; margin-bottom: 18px; }
+  .ch-num { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 9px; }
+  h2 { font-size: clamp(24px, 3vw, 32px); line-height: 1.15; letter-spacing: -0.015em; margin: 0 0 10px; font-weight: 680; }
+  .prose { max-width: 66ch; color: var(--ink2); }
+  .prose p { margin: 0 0 12px; }
+  .prose strong { color: var(--ink); font-weight: 600; }
+  .finding {
+    border-left: 3px solid var(--ma); padding: 4px 0 4px 16px; margin: 18px 0 0;
+    color: var(--ink); font-size: 17px; max-width: 66ch;
+  }
+  .finding b { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink2); font-weight: 600; margin-bottom: 2px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 20px 14px; margin-top: 22px; }
+  .card h3 { font-size: 15px; margin: 0 0 2px; font-weight: 620; }
+  .card .sub { font-size: 13px; color: var(--ink2); margin: 0 0 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .grid2 > .card { margin-top: 22px; }
+  .chart { width: 100%; position: relative; }
+  .chart svg { display: block; overflow: visible; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink2); margin: 0 0 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+  .legend i.dot { width: 9px; height: 9px; border-radius: 50%; }
+  .legend i.ring { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--muted); background: transparent; }
+
+  .axis text { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .axis line, .axis path { stroke: var(--base); }
+  .gridline line { stroke: var(--grid); }
+  .gridline path { display: none; }
+  .lbl { fill: var(--ink); font-size: 12.5px; }
+  .lbl2 { fill: var(--ink2); font-size: 12px; }
+
+  details.table { margin-top: 8px; font-size: 13px; }
+  details.table summary { cursor: pointer; color: var(--ink2); }
+  .tw { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th { color: var(--ink2); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
+  .seg { display: inline-flex; flex-wrap: wrap; background: var(--chip); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { border: 0; background: transparent; color: var(--ink2); font: inherit; font-size: 13px;
+                padding: 5px 10px; border-radius: 8px; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--border); font-weight: 600; }
+  input.search { border: 1px solid var(--border); background: var(--surface); color: var(--ink); border-radius: 10px;
+                 padding: 7px 12px; font: inherit; font-size: 14px; min-width: 220px; }
+  .scale { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink2); margin-top: 8px; flex-wrap: wrap; }
+  .scale .bar { width: 220px; height: 10px; border-radius: 3px; }
+  .scale .nd { display: inline-flex; gap: 6px; align-items: center; }
+  .scale .nd i { width: 12px; height: 10px; border-radius: 2px; background: var(--nodata); display: inline-block; box-shadow: inset 0 0 0 1px var(--border); }
+  .pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--ink2); }
+  .pill.up::before { content: "▲ "; color: var(--ma); }
+  .pill.down::before { content: "▼ "; color: var(--red); }
+  button.more { margin-top: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+                border-radius: 10px; padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+
+  #tip {
+    position: fixed; pointer-events: none; z-index: 20; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 10px; padding: 8px 11px; font-size: 13px; line-height: 1.45;
+    box-shadow: 0 6px 24px rgba(0,0,0,.12); opacity: 0; transition: opacity .08s; max-width: 280px;
+  }
+  #tip .t { font-weight: 620; margin-bottom: 2px; }
+  #tip .r { display: flex; justify-content: space-between; gap: 14px; color: var(--ink2); }
+  #tip .r b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  #tip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+  footer { max-width: 1120px; margin: 64px auto 0; padding: 28px 24px 56px; border-top: 1px solid var(--border);
+           color: var(--ink2); font-size: 14px; }
+  .loading { color: var(--muted); font-size: 13px; padding: 40px 0; text-align: center; }
+
+  @media (max-width: 820px) {
+    .tiles { grid-template-columns: 1fr 1fr; }
+    .grid2 { grid-template-columns: 1fr; gap: 0; }
+    .ch-head { grid-template-columns: 1fr; }
+    .ch-num { padding: 0 0 4px; }
+    nav.top .brand { display: none; }
+  }
+  @media (max-width: 480px) {
+    header.hero, section.ch, footer, nav.top .in { padding-left: 16px; padding-right: 16px; }
+    .tiles { grid-template-columns: 1fr; }
+    .card { padding: 16px 14px 12px; }
+    input.search { min-width: 0; width: 100%; }
+  }
+  .calc { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 22px; align-items: start; }
+  .calc label { display: block; font-size: 13px; color: var(--ink2); margin: 0 0 4px; }
+  .calc .field { margin-bottom: 14px; }
+  .calc input[type=range] { width: 100%; accent-color: var(--ma); }
+  .calc select { width: 100%; border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+                 border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 14px; }
+  .calc .val { float: right; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .result { background: var(--page); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .result .big { font-size: 48px; font-weight: 680; letter-spacing: -0.02em; line-height: 1; }
+  .result .of { color: var(--muted); font-size: 15px; }
+  .result ul { list-style: none; padding: 0; margin: 14px 0 0; font-size: 14px; }
+  .result li { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--grid); color: var(--ink2); }
+  .result li.on { color: var(--ink); }
+  .result li b { font-variant-numeric: tabular-nums; }
+  .result li.on b::before { content: "+"; }
+  .result li:not(.on) b { color: var(--muted); }
+  .verdict { margin-top: 12px; font-size: 15px; }
+  .fixes { margin: 8px 0 0; padding-left: 20px; color: var(--ink2); max-width: 70ch; }
+  .fixes li { margin-bottom: 8px; }
+  .fixes strong { color: var(--ink); }
+  .tier-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border);
+              border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-top: 22px; }
+  @media (max-width: 820px) { .calc { grid-template-columns: 1fr; } .tier-row { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<nav class="top"><div class="in">
+  <span class="brand">The Six-Line Churn Rule</span>
+  <div class="links">
+    <a href="#cliffs">The cliffs</a><a href="#together">Together</a><a href="#matters">What matters</a>
+    <a href="#scorecard">Scorecard</a><a href="#models">Models</a><a href="#tiers">Risk tiers</a>
+    <a href="#fixes">Fixes</a><a href="#method">Method</a><a href="../">Medicare report</a>
+  </div>
+  <button class="theme" id="theme" type="button" aria-label="Toggle color theme">Theme</button>
+</div></nav>
+
+<header class="hero">
+  <p class="eyebrow">Kaggle Netflix customer churn · 5,000 subscribers · 12 features</p>
+  <h1>Netflix churn isn't a mystery. <em>It's a six-line rule.</em></h1>
+  <p class="lede" id="lede"></p>
+  <div class="tiles" id="tiles"></div>
+</header>
+
+<section class="ch" id="cliffs">
+  <div class="ch-head"><div class="ch-num">01</div><div>
+    <h2>Churn falls off cliffs, not slopes</h2>
+    <div class="prose"><p>Two habits carry most of the signal: how much people watch, and how long ago they last logged in.
+    Neither changes smoothly. Churn drops in steps at <strong>5</strong> and <strong>20 watch hours</strong>, and jumps
+    once the last login is more than <strong>30 days</strong> old.</p></div>
+  </div></div>
+  <div class="grid2">
+    <div class="card"><h3>Churn by watch hours</h3><p class="sub">1-hour bins, 95% interval shaded</p>
+      <div class="chart" id="c-watch"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-watch"></div></details></div>
+    <div class="card"><h3>Churn by days since last login</h3><p class="sub">3-day bins, 95% interval shaded</p>
+      <div class="chart" id="c-login"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-login"></div></details></div>
+  </div>
+</section>
+
+<section class="ch" id="together">
+  <div class="ch-head"><div class="ch-num">02</div><div>
+    <h2>Together, the two habits nearly decide it</h2>
+    <div class="prose"><p>Each cell is the share of customers who churned, for one band of watch hours and one band of days since
+    last login. Heavy watchers almost never leave, however long ago they logged in. Light watchers who haven't logged in for a month always do.</p></div>
+  </div></div>
+  <div class="card"><h3>Share who churned, by watch hours (columns) and days since login (rows)</h3><p class="sub" id="grid-sub"></p>
+    <div class="chart" id="c-grid"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-grid"></div></details></div>
+  <p class="finding" id="f-grid"></p>
+</section>
+
+<section class="ch" id="matters">
+  <div class="ch-head"><div class="ch-num">03</div><div>
+    <h2>Three account details matter. Demographics don't.</h2>
+    <div class="prose" id="p-matters"></div>
+  </div></div>
+  <div class="card"><h3>Share who churned for each value, with 95% interval</h3>
+    <div class="legend"><span><i class="dot" style="background:var(--ma)"></i>Churn differs between values (chi-square p &lt; 0.01)</span><span><i class="dot" style="background:var(--muted)"></i>No detectable difference</span></div>
+    <div class="chart" id="c-effects"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-effects"></div></details></div>
+</section>
+
+<section class="ch" id="scorecard">
+  <div class="ch-head"><div class="ch-num">04</div><div>
+    <h2>The scorecard</h2>
+    <div class="prose" id="p-card"></div>
+  </div></div>
+  <div class="card">
+    <h3>Try it</h3><p class="sub">Set a customer's details. The score uses the six conditions; the churn rate is what happened to the real customers with that score.</p>
+    <div class="calc">
+      <div>
+        <div class="field"><label for="in-watch">Watch hours <span class="val" id="v-watch"></span></label><input type="range" id="in-watch" min="0" max="40" step="0.5" value="8"></div>
+        <div class="field"><label for="in-login">Days since last login <span class="val" id="v-login"></span></label><input type="range" id="in-login" min="0" max="60" step="1" value="35"></div>
+        <div class="field"><label for="in-plan">Plan</label><select id="in-plan"><option>Basic</option><option selected>Standard</option><option>Premium</option></select></div>
+        <div class="field"><label for="in-prof">Profiles</label><select id="in-prof"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select></div>
+        <div class="field"><label for="in-pay">Payment method</label><select id="in-pay"><option>Credit Card</option><option>Debit Card</option><option>PayPal</option><option>Gift Card</option><option>Crypto</option></select></div>
+      </div>
+      <div class="result" aria-live="polite">
+        <div class="label" style="font-size:13px;color:var(--ink2)">Score</div>
+        <div><span class="big" id="r-score"></span> <span class="of" id="r-of"></span></div>
+        <div class="verdict" id="r-verdict"></div>
+        <ul id="r-list"></ul>
+      </div>
+    </div>
+  </div>
+  <div class="card"><h3>Churn by total points</h3><p class="sub">All 5,000 customers; orange scores are predicted to churn</p>
+    <div class="chart" id="c-points"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-points"></div></details></div>
+</section>
+
+<section class="ch" id="models">
+  <div class="ch-head"><div class="ch-num">05</div><div>
+    <h2>Six classifiers against six lines</h2>
+    <div class="prose"><p>Every model is scored on the same <strong>repeated 5-fold cross-validation</strong> (15 held-out folds).
+    Logistic regression, KNN and Naive Bayes get one-hot categories and scaled numbers; tree models get ordinal codes.
+    The scorecard is refit on each training fold, like the others.</p></div>
+  </div></div>
+  <div class="card"><h3>Held-out accuracy (± 1 sd across folds)</h3>
+    <div class="legend"><span><i class="dot" style="background:var(--ma)"></i>Classifier</span><span><i class="dot" style="background:var(--om)"></i>Six-condition scorecard</span><span><i class="ring"></i>Original notebook (one 80/20 split)</span></div>
+    <div class="chart" id="c-models"></div><div class="tw" id="t-models"></div></div>
+  <div class="card"><h3>Where the best model still makes mistakes</h3><p class="sub">Gradient boosting's out-of-fold errors, by scorecard total</p>
+    <div class="chart" id="c-errors"></div></div>
+  <p class="finding" id="f-models"></p>
+</section>
+
+<section class="ch" id="tiers">
+  <div class="ch-head"><div class="ch-num">06</div><div>
+    <h2>Four risk tiers</h2>
+    <div class="prose" id="p-tiers"></div>
+  </div></div>
+  <div class="tier-row" id="tiers-row"></div>
+</section>
+
+<section class="ch" id="fixes">
+  <div class="ch-head"><div class="ch-num">07</div><div>
+    <h2>What changed from the original notebook</h2>
+    <ol class="fixes" id="fix-list"></ol>
+  </div></div>
+</section>
+
+<section class="ch" id="method">
+  <div class="ch-head"><div class="ch-num">08</div><div>
+    <h2>Method and caveats</h2>
+    <div class="prose">
+      <p><strong>The data is synthetic.</strong> It is a public Kaggle dataset, not Netflix's records. Its sharp thresholds, a derived
+      column and features with no effect at all show it was generated from rules. The findings describe this dataset; they say
+      nothing about real Netflix customers.</p>
+      <p><strong>Thresholds.</strong> The cut-points (5 and 20 watch hours, 30 days) are where churn jumps in the data and where a single
+      split separates churners best. The points were found by searching small integers for the highest accuracy; no other small
+      weights for these six conditions do better. The cut-points were chosen on the full dataset, so the held-out scorecard
+      accuracy is very slightly optimistic (the fixed card scores 95.6% on all rows).</p>
+      <p><strong>Evaluation.</strong> Repeated stratified 5-fold cross-validation, 3 repeats, the same folds for every model.
+      Feature tests use chi-square for categories and point-biserial correlation for numbers.</p>
+      <p><strong>Code.</strong> <a href="https://github.com/HiralR2931/churn-prediction/tree/main/netflix-churn">github.com/HiralR2931/churn-prediction</a>.
+      Every number on this page is generated by <code>run_pipeline.py</code>.</p>
+    </div>
+  </div></div>
+</section>
+
+<footer>Built by Hiral Rana · Data: <a href="https://www.kaggle.com/datasets/abdulwadood11220/netflix-customer-churn-dataset">Netflix Customer Churn Dataset (Kaggle)</a> · <a href="../">The Medicare Advantage Stall</a></footer>
+
+<div id="tip" role="tooltip"></div>
+
+<script src="data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script>
+const R = window.REPORT, S = R.summary;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt1 = d3.format(".1f"), pct0 = d3.format(".0%"), pct1 = d3.format(".1%"), comma = d3.format(",");
+
+/* ---------- theme ---------- */
+const themeBtn = document.getElementById("theme");
+function currentTheme() {
+  const t = document.documentElement.dataset.theme;
+  return t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+}
+function setThemeLabel() { themeBtn.textContent = currentTheme() === "dark" ? "Light mode" : "Dark mode"; }
+try { const saved = localStorage.getItem("theme"); if (saved) document.documentElement.dataset.theme = saved; } catch (e) {}
+themeBtn.addEventListener("click", () => {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("theme", next); } catch (e) {}
+  setThemeLabel(); renderAll();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { setThemeLabel(); renderAll(); });
+setThemeLabel();
+
+/* ---------- tooltip & helpers ---------- */
+const tip = document.getElementById("tip");
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.style.opacity = 1;
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip() { tip.style.opacity = 0; }
+const row = (k, v, color) => `<div class="r"><span>${color ? `<i style="background:${color}"></i>` : ""}${k}</span><b>${v}</b></div>`;
+function frame(id, height, m) {
+  const el = document.getElementById(id); el.innerHTML = "";
+  const W = el.clientWidth, w = W - m.l - m.r, h = height - m.t - m.b;
+  const svg = d3.select(el).append("svg").attr("width", W).attr("height", height);
+  return { el, svg, g: svg.append("g").attr("transform", `translate(${m.l},${m.t})`), w, h, W };
+}
+function yGrid(g, y, w, ticks, f) {
+  g.append("g").attr("class", "gridline").call(d3.axisLeft(y).ticks(ticks).tickSize(-w).tickFormat(""));
+  g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(ticks).tickSize(0).tickPadding(8).tickFormat(f))
+    .call(s => s.select(".domain").remove());
+}
+function table(id, cols, rows) {
+  document.getElementById(id).innerHTML = `<table><thead><tr>${cols.map(c => `<th class="${c.num ? "num" : ""}">${c.h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${cols.map(c => `<td class="${c.num ? "num" : ""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+const colPath = (x, y0, y1, bw) => {
+  const r = Math.min(4, bw / 2, Math.abs(y0 - y1));
+  return `M${x},${y0}V${y1 + r}Q${x},${y1} ${x + r},${y1}H${x + bw - r}Q${x + bw},${y1} ${x + bw},${y1 + r}V${y0}Z`;
+};
+const NAMES = { subscription_type: "Plan", payment_method: "Payment method", number_of_profiles: "Profiles",
+  gender: "Gender", region: "Region", device: "Device", favorite_genre: "Favorite genre", age: "Age",
+  watch_hours: "Watch hours", last_login_days: "Days since last login", avg_watch_time_per_day: "Avg. watch time per day" };
+const LABEL = Object.fromEntries(R.conditions.map(c => [c.name, c.label]));
+const PTS = Object.fromEntries(R.conditions.map(c => [c.name, c.points]));
+
+/* ---------- hero ---------- */
+function hero() {
+  document.getElementById("lede").textContent =
+    `This dataset is a common churn-modelling exercise, and gradient boosting scores ${pct1(S.best_accuracy)} on it. That isn't because ` +
+    `churn is subtle. Six yes-or-no conditions about viewing, logins and the account predict it for ${pct1(S.scorecard_accuracy)} of ` +
+    `customers, and gender, age, region, device and genre play no part at all.`;
+  document.getElementById("tiles").innerHTML = [
+    ["hero-tile", "Scorecard accuracy", pct1(S.scorecard_accuracy), `six conditions, held-out folds; best model ${pct1(S.best_accuracy)}`],
+    ["", `Churned with ${S.low_points_to} points or fewer`, `${S.low_churned} of ${comma(S.low_customers)}`, "customers"],
+    ["", `Churned with ${S.top_points_from}+ points`, `${comma(S.top_churned)} of ${comma(S.top_customers)}`, "customers"],
+    ["", "Features with no effect", `${S.features_no_effect.length} of ${S.features}`, "monthly fee also adds nothing: it just repeats the plan"],
+  ].map(([c, l, v, n]) => `<div class="tile ${c}"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join("");
+}
+
+/* ---------- 01 cliffs ---------- */
+function stepChart(id, d, color, xMax, xLabel, cuts, xOf, rangeLabel) {
+  const m = { t: 10, r: 12, b: 40, l: 40 }, F = frame(id, 280, m), { g, w, h } = F;
+  const x = d3.scaleLinear().domain([0, xMax]).range([0, w]);
+  const y = d3.scaleLinear().domain([0, 1]).range([h, 0]);
+  yGrid(g, y, w, 5, pct0);
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(6).tickSize(0).tickPadding(8));
+  g.append("text").attr("class", "lbl2").attr("x", w / 2).attr("y", h + 34).attr("text-anchor", "middle").text(xLabel);
+  const pts = d.flatMap(r => [[xOf(r)[0], r], [xOf(r)[1], r]]);
+  g.append("path").datum(pts).attr("fill", color).attr("opacity", 0.12)
+    .attr("d", d3.area().x(p => x(p[0])).y0(p => y(p[1].ci_low)).y1(p => y(p[1].ci_high)));
+  g.append("path").datum(pts).attr("fill", "none").attr("stroke", color).attr("stroke-width", 2).attr("stroke-linejoin", "round")
+    .attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1].churn_rate)));
+  cuts.forEach(([v, l]) => {
+    g.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", 0).attr("y2", h).attr("stroke", css("--ink2"));
+    g.append("text").attr("class", "lbl2").attr("x", x(v) + 5).attr("y", 12).text(l);
+  });
+  g.selectAll("rect.hit").data(d).join("rect").attr("x", r => x(xOf(r)[0])).attr("width", r => Math.max(1, x(xOf(r)[1]) - x(xOf(r)[0])))
+    .attr("y", 0).attr("height", h).attr("fill", "transparent")
+    .on("pointermove", (ev, r) => showTip(ev, `<div class="t">${rangeLabel(r)}</div>` + row("Churned", pct0(r.churn_rate), color) +
+      row("95% interval", `${pct0(r.ci_low)}–${pct0(r.ci_high)}`) + row("Customers", comma(r.n))))
+    .on("pointerleave", hideTip);
+}
+function cliffs() {
+  const wl = r => r.to == null ? `${r.from}+ watch hours` : `${r.from} to under ${r.to} watch hours`;
+  stepChart("c-watch", R.cliff_watch, css("--ma"), 31, "Watch hours", [[5, "5 h"], [20, "20 h"]], r => [r.from, r.to == null ? 31 : r.to], wl);
+  const ll = r => `${r.from}–${r.to} days since login`;
+  stepChart("c-login", R.cliff_login, css("--om"), 61, "Days since last login", [[30.5, "30 days"]], r => [r.from, r.to + 1], ll);
+  const cols = lab => [{ h: lab, f: r => lab.startsWith("Watch") ? wl(r).replace(" watch hours", "") : `${r.from}–${r.to}` },
+    { h: "Churned", num: 1, f: r => pct1(r.churn_rate) }, { h: "95% interval", num: 1, f: r => `${pct0(r.ci_low)}–${pct0(r.ci_high)}` }, { h: "Customers", num: 1, f: r => comma(r.n) }];
+  table("t-watch", cols("Watch hours"), R.cliff_watch);
+  table("t-login", cols("Days since login"), R.cliff_login);
+}
+
+/* ---------- 02 interaction grid ---------- */
+function grid() {
+  const d = R.grid, logins = [...new Set(d.map(r => r.login_band))], watches = [...new Set(d.map(r => r.watch_band))];
+  const el = document.getElementById("c-grid"), narrow = el.clientWidth < 520;
+  const m = { t: 26, r: 8, b: 8, l: narrow ? 70 : 150 }, F = frame("c-grid", 290, m), { g, w, h } = F;
+  const x = d3.scaleBand().domain(watches).range([0, w]).padding(0.04);
+  const y = d3.scaleBand().domain(logins).range([0, h]).padding(0.06);
+  const dark = currentTheme() === "dark";
+  const ramp = dark ? ["#1c2a3d", "#2a78d6", "#cde2fb"] : ["#eef4fd", "#3987e5", "#0d366b"];
+  const c = d3.scaleLinear().domain([0, 0.5, 1]).range(ramp).interpolate(d3.interpolateLab);
+  document.getElementById("grid-sub").textContent = `${dark ? "Lighter" : "Darker"} cells mean more churn; hover for counts`;
+  g.selectAll("text.cx").data(watches).join("text").attr("class", "lbl2").attr("text-anchor", "middle")
+    .attr("x", v => x(v) + x.bandwidth() / 2).attr("y", -10).text(v => narrow ? v : v + " h");
+  g.selectAll("text.cy").data(logins).join("text").attr("class", "lbl2").attr("text-anchor", "end")
+    .attr("x", -10).attr("y", v => y(v) + y.bandwidth() / 2 + 4).text(v => narrow ? v + " d" : v + " days since login");
+  const cells = g.selectAll("g.cell").data(d).join("g").attr("class", "cell");
+  cells.append("rect").attr("x", r => x(r.watch_band)).attr("y", r => y(r.login_band)).attr("width", x.bandwidth()).attr("height", y.bandwidth())
+    .attr("rx", 4).attr("fill", r => r.n ? c(r.churn_rate) : css("--nodata"));
+  cells.append("text").attr("text-anchor", "middle").attr("font-size", 12.5).attr("font-variant-numeric", "tabular-nums")
+    .attr("x", r => x(r.watch_band) + x.bandwidth() / 2).attr("y", r => y(r.login_band) + y.bandwidth() / 2 + 4)
+    .attr("fill", r => { const l = d3.lab(c(r.churn_rate)).l; return l > 60 ? "#0b0b0b" : "#ffffff"; })
+    .text(r => r.n ? pct0(r.churn_rate) : "");
+  cells.on("pointermove", (ev, r) => showTip(ev, `<div class="t">${r.watch_band} watch hours · ${r.login_band} days</div>` +
+    row("Churned", pct1(r.churn_rate)) + row("Customers", comma(r.n)))).on("pointerleave", hideTip);
+  table("t-grid", [{ h: "Days since login", f: r => r.login_band }, { h: "Watch hours", f: r => r.watch_band },
+    { h: "Churned", num: 1, f: r => pct1(r.churn_rate) }, { h: "Customers", num: 1, f: r => comma(r.n) }], d);
+  const heavy = d.filter(r => r.watch_band === "30+"), light = d.filter(r => r.watch_band === "<5" && ["31–40", "41–50", "51–60"].includes(r.login_band));
+  const hk = d3.sum(heavy, r => r.churn_rate * r.n), hn = d3.sum(heavy, r => r.n), lk = d3.sum(light, r => r.churn_rate * r.n), ln = d3.sum(light, r => r.n);
+  document.getElementById("f-grid").innerHTML = `<b>Finding</b>Of ${comma(hn)} customers who watched 30 hours or more, ${Math.round(hk)} churned.
+    Of ${comma(ln)} who watched under 5 hours and hadn't logged in for over 30 days, ${comma(Math.round(lk))} churned (${pct0(lk / ln)}).`;
+}
+
+/* ---------- 03 effects ---------- */
+function effects() {
+  const order = ["subscription_type", "payment_method", "number_of_profiles", "gender", "region", "device", "favorite_genre"];
+  const P = Object.fromEntries(R.tests.map(t => [t.feature, t]));
+  const rows = [];
+  order.forEach(f => {
+    rows.push({ head: f });
+    R.effects.filter(e => e.feature === f).sort((a, b) => a.churn_rate - b.churn_rate).forEach(e => rows.push(e));
+  });
+  const el = document.getElementById("c-effects"), narrow = el.clientWidth < 520;
+  const step = 21, m = { t: 8, r: 16, b: 28, l: narrow ? 104 : 130 }, F = frame("c-effects", rows.length * step + 36, m), { g, w, h } = F;
+  const x = d3.scaleLinear().domain([0.25, 0.7]).range([0, w]);
+  g.append("g").attr("class", "gridline").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickSize(-h).tickFormat(""));
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickSize(0).tickPadding(8).tickFormat(pct0)).call(s => s.select(".domain").remove());
+  g.append("line").attr("x1", x(S.churn_rate)).attr("x2", x(S.churn_rate)).attr("y1", 0).attr("y2", h).attr("stroke", css("--ink2"));
+  rows.forEach((r, i) => {
+    const cy = i * step + step / 2;
+    if (r.head) {
+      const t = P[r.head], ok = t.matters;
+      g.append("text").attr("x", -m.l + 2).attr("y", cy + 4).attr("font-size", 13).attr("font-weight", 620).attr("fill", ok ? css("--ink") : css("--ink2"))
+        .text(NAMES[r.head]);
+      g.append("text").attr("class", "lbl2").attr("x", x(0.7)).attr("y", cy + 4).attr("text-anchor", "end")
+        .text(ok ? (t.p_value < 0.001 ? "p < 0.001" : `p = ${d3.format(".3f")(t.p_value)}`) : `no effect · p = ${d3.format(".2f")(t.p_value)}`);
+      return;
+    }
+    const col = P[r.feature].matters ? css("--ma") : css("--muted");
+    g.append("text").attr("class", "lbl2").attr("x", -10).attr("y", cy + 4).attr("text-anchor", "end").text(r.value);
+    g.append("line").attr("x1", x(r.ci_low)).attr("x2", x(r.ci_high)).attr("y1", cy).attr("y2", cy).attr("stroke", col).attr("stroke-width", 2).attr("opacity", 0.55);
+    g.append("circle").attr("cx", x(r.churn_rate)).attr("cy", cy).attr("r", 4.5).attr("fill", col).attr("stroke", css("--surface")).attr("stroke-width", 2);
+    g.append("rect").attr("x", -m.l).attr("width", w + m.l).attr("y", cy - step / 2).attr("height", step).attr("fill", "transparent")
+      .on("pointermove", ev => showTip(ev, `<div class="t">${NAMES[r.feature]}: ${r.value}</div>` + row("Churned", pct1(r.churn_rate), col) +
+        row("95% interval", `${pct0(r.ci_low)}–${pct0(r.ci_high)}`) + row("Customers", comma(r.n)))).on("pointerleave", hideTip);
+  });
+  table("t-effects", [{ h: "Feature", f: r => NAMES[r.feature] }, { h: "Value", f: r => r.value }, { h: "Churned", num: 1, f: r => pct1(r.churn_rate) },
+    { h: "95% interval", num: 1, f: r => `${pct0(r.ci_low)}–${pct0(r.ci_high)}` }, { h: "Customers", num: 1, f: r => comma(r.n) }], R.effects);
+  const none = S.features_no_effect.map(f => NAMES[f].toLowerCase());
+  document.getElementById("p-matters").innerHTML = `<p>Basic-plan customers, people paying by crypto or gift card, and accounts with fewer
+    than 4 profiles churn noticeably more. For ${none.slice(0, -1).join(", ")} and ${none.slice(-1)}, every group sits within a few points of
+    the ${pct0(S.churn_rate)} average, which is what chance alone produces in groups this size. Monthly fee is not shown: it is fixed
+    by plan, so it carries no extra information.</p>`;
+}
+
+/* ---------- 04 scorecard ---------- */
+function flagsOf(v) {
+  return { watch_lt5: v.watch < 5, watch_5_20: v.watch >= 5 && v.watch < 20, login_gt30: v.login > 30, basic_plan: v.plan === "Basic",
+    profiles_lt4: v.prof < 4, pay_crypto_gift: v.pay === "Crypto" || v.pay === "Gift Card" };
+}
+function calc() {
+  const v = { watch: +document.getElementById("in-watch").value, login: +document.getElementById("in-login").value,
+    plan: document.getElementById("in-plan").value, prof: +document.getElementById("in-prof").value, pay: document.getElementById("in-pay").value };
+  document.getElementById("v-watch").textContent = fmt1(v.watch) + " h";
+  document.getElementById("v-login").textContent = v.login + " days";
+  const f = flagsOf(v), total = d3.sum(R.conditions, c => f[c.name] ? c.points : 0);
+  const p = R.points.find(r => r.points === total);
+  document.getElementById("r-score").textContent = total;
+  document.getElementById("r-of").textContent = `of ${S.max_points} points`;
+  const churn = total >= S.cutoff;
+  document.getElementById("r-verdict").innerHTML = `<span class="pill ${churn ? "down" : "up"}">${churn ? "Predicted to churn" : "Predicted to stay"}</span>
+    ${p ? ` · <strong>${pct0(p.churn_rate)}</strong> of the ${comma(p.n)} customers with this score churned` : ""}`;
+  document.getElementById("r-list").innerHTML = R.conditions.map(c => `<li class="${f[c.name] ? "on" : ""}"><span>${c.label}</span><b>${f[c.name] ? c.points : 0}</b></li>`).join("");
+}
+["in-watch", "in-login", "in-plan", "in-prof", "in-pay"].forEach(id => document.getElementById(id).addEventListener("input", calc));
+function points() {
+  const d = R.points, m = { t: 22, r: 8, b: 40, l: 40 }, F = frame("c-points", 270, m), { g, w, h } = F;
+  const x = d3.scaleBand().domain(d.map(r => r.points)).range([0, w]).padding(0.3);
+  const y = d3.scaleLinear().domain([0, 1.08]).range([h, 0]);
+  yGrid(g, y, w, 5, pct0);
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).tickSize(0).tickPadding(8));
+  g.append("text").attr("class", "lbl2").attr("x", w / 2).attr("y", h + 34).attr("text-anchor", "middle").text("Total points");
+  const bw = Math.min(24, x.bandwidth()), off = (x.bandwidth() - bw) / 2;
+  g.selectAll("path.bar").data(d).join("path").attr("class", "bar").attr("fill", r => r.points >= S.cutoff ? css("--om") : css("--ma"))
+    .attr("d", r => colPath(x(r.points) + off, h, y(Math.max(r.churn_rate, 0.004)), bw));
+  // narrow screens: label only the bars either side of the cut-off and the last one
+  const keep = x.bandwidth() < 26 ? new Set([S.cutoff - 1, S.cutoff, d[d.length - 1].points]) : null;
+  g.selectAll("text.v").data(d.filter(r => !keep || keep.has(r.points))).join("text").attr("class", "lbl").attr("text-anchor", "middle").attr("font-size", 11)
+    .attr("x", r => x(r.points) + x.bandwidth() / 2).attr("y", r => y(r.churn_rate) - 5).text(r => pct0(r.churn_rate));
+  const cx = x(S.cutoff) - x.step() * x.paddingInner() / 2;
+  g.append("line").attr("x1", cx).attr("x2", cx).attr("y1", -14).attr("y2", h).attr("stroke", css("--ink2"));
+  g.append("text").attr("class", "lbl2").attr("x", cx + 5).attr("y", -6).text("predict churn →");
+  g.selectAll("rect.hit").data(d).join("rect").attr("x", r => x(r.points)).attr("width", x.bandwidth()).attr("y", 0).attr("height", h).attr("fill", "transparent")
+    .on("pointermove", (ev, r) => showTip(ev, `<div class="t">${r.points} points</div>` + row("Churned", `${comma(r.churned)} of ${comma(r.n)}`) + row("Rate", pct1(r.churn_rate))))
+    .on("pointerleave", hideTip);
+  table("t-points", [{ h: "Points", f: r => r.points }, { h: "Customers", num: 1, f: r => comma(r.n) }, { h: "Churned", num: 1, f: r => comma(r.churned) },
+    { h: "Rate", num: 1, f: r => pct1(r.churn_rate) }], d);
+  document.getElementById("p-card").innerHTML = `<p>Add the points for each condition a customer meets. A total of <strong>${S.cutoff} or more</strong>
+    predicts churn. ${R.conditions.map(c => `${c.label} <strong>+${c.points}</strong>`).join(", ")}. The two watch-hour conditions don't stack,
+    so the maximum is ${S.max_points}.</p>`;
+}
+
+/* ---------- 05 models ---------- */
+function models() {
+  const d = [...R.benchmark].sort((a, b) => b.accuracy - a.accuracy);
+  const el = document.getElementById("c-models"), narrow = el.clientWidth < 560;
+  const step = 34, m = { t: 6, r: 56, b: 30, l: narrow ? 150 : 230 }, F = frame("c-models", d.length * step + 40, m), { g, w, h } = F;
+  const x = d3.scaleLinear().domain([0.8, 1.0]).range([0, w]);
+  const y = d3.scaleBand().domain(d.map(r => r.model)).range([0, h]).padding(0.2);
+  g.append("g").attr("class", "gridline").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).tickValues([0.8, 0.85, 0.9, 0.95, 1]).tickSize(-h).tickFormat(""));
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).tickValues([0.8, 0.85, 0.9, 0.95, 1]).tickSize(0).tickPadding(8).tickFormat(pct0)).call(s => s.select(".domain").remove());
+  d.forEach(r => {
+    const cy = y(r.model) + y.bandwidth() / 2, col = r.model.includes("scorecard") ? css("--om") : css("--ma");
+    g.append("text").attr("class", "lbl2").attr("x", -10).attr("y", cy + 4).attr("text-anchor", "end").text(narrow ? r.model.replace("Gradient boosting", "Grad. boosting") : r.model);
+    g.append("line").attr("x1", x(r.accuracy - r.accuracy_sd)).attr("x2", x(r.accuracy + r.accuracy_sd)).attr("y1", cy).attr("y2", cy).attr("stroke", css("--ink2"));
+    if (r.notebook_accuracy != null) g.append("circle").attr("cx", x(r.notebook_accuracy)).attr("cy", cy + 9).attr("r", 3.5).attr("fill", css("--surface")).attr("stroke", css("--muted")).attr("stroke-width", 1.5);
+    g.append("circle").attr("cx", x(r.accuracy)).attr("cy", cy).attr("r", 5).attr("fill", col).attr("stroke", css("--surface")).attr("stroke-width", 2);
+    g.append("text").attr("class", "lbl").attr("x", x(r.accuracy + r.accuracy_sd) + 6).attr("y", cy + 4).text(pct1(r.accuracy));
+    g.append("rect").attr("x", -m.l).attr("width", w + m.l + m.r).attr("y", y(r.model)).attr("height", y.bandwidth()).attr("fill", "transparent")
+      .on("pointermove", ev => showTip(ev, `<div class="t">${r.model}</div>` + row("Accuracy", `${pct1(r.accuracy)} ± ${pct1(r.accuracy_sd)}`, col) +
+        row("ROC-AUC", d3.format(".3f")(r.roc_auc)) + row("Errors per 1,000", Math.round(r.errors_per_1000)) +
+        (r.notebook_accuracy != null ? row("Original notebook", pct1(r.notebook_accuracy), css("--muted")) : ""))).on("pointerleave", hideTip);
+  });
+  table("t-models", [{ h: "Model", f: r => r.model }, { h: "Features", num: 1, f: r => r.features }, { h: "Accuracy", num: 1, f: r => `${pct1(r.accuracy)} ± ${pct1(r.accuracy_sd)}` },
+    { h: "ROC-AUC", num: 1, f: r => d3.format(".3f")(r.roc_auc) }, { h: "Errors / 1,000", num: 1, f: r => Math.round(r.errors_per_1000) },
+    { h: "Original notebook", num: 1, f: r => r.notebook_accuracy != null ? pct1(r.notebook_accuracy) : "—" }], d);
+
+  const e = R.errors, m2 = { t: 18, r: 8, b: 40, l: 36 }, F2 = frame("c-errors", 220, m2);
+  const x2 = d3.scaleBand().domain(e.map(r => r.points)).range([0, F2.w]).padding(0.3);
+  const y2 = d3.scaleLinear().domain([0, d3.max(e, r => r.gb_errors) * 1.15]).range([F2.h, 0]);
+  yGrid(F2.g, y2, F2.w, 4, d3.format("d"));
+  F2.g.append("g").attr("class", "axis").attr("transform", `translate(0,${F2.h})`).call(d3.axisBottom(x2).tickSize(0).tickPadding(8));
+  F2.g.append("text").attr("class", "lbl2").attr("x", F2.w / 2).attr("y", F2.h + 34).attr("text-anchor", "middle").text("Scorecard total");
+  const bw = Math.min(24, x2.bandwidth()), off = (x2.bandwidth() - bw) / 2;
+  F2.g.selectAll("path.bar").data(e.filter(r => r.gb_errors > 0)).join("path").attr("class", "bar").attr("fill", css("--ma"))
+    .attr("d", r => colPath(x2(r.points) + off, F2.h, y2(r.gb_errors), bw));
+  F2.g.selectAll("text.v").data(e.filter(r => r.gb_errors > 0)).join("text").attr("class", "lbl").attr("text-anchor", "middle").attr("font-size", 11)
+    .attr("x", r => x2(r.points) + x2.bandwidth() / 2).attr("y", r => y2(r.gb_errors) - 5).text(r => r.gb_errors);
+  F2.g.selectAll("rect.hit").data(e).join("rect").attr("x", r => x2(r.points)).attr("width", x2.bandwidth()).attr("y", 0).attr("height", F2.h).attr("fill", "transparent")
+    .on("pointermove", (ev, r) => showTip(ev, `<div class="t">${r.points} points</div>` + row("Errors", r.gb_errors) + row("Customers", comma(r.customers)))).on("pointerleave", hideTip);
+
+  const card = d.find(r => r.model.includes("scorecard"));
+  document.getElementById("f-models").innerHTML = `<b>Finding</b>Gradient boosting is the most accurate (${pct1(S.best_accuracy)}), and the
+    original notebook's figure for it holds up. But a six-line scorecard reaches ${pct1(card.accuracy)}, and gradient boosting on just the 5
+    driving features reaches ${pct1(S.drivers_only_accuracy)}. ${S.gb_errors_near_cutoff} of its ${S.gb_errors_total} errors are customers
+    scoring ${S.near_cutoff_range[0]}–${S.near_cutoff_range[1]}, right at the scorecard's cut-off; everyone else is decided by the rule.`;
+}
+
+/* ---------- 06 tiers ---------- */
+function tiers() {
+  const t = R.tiers;
+  document.getElementById("tiers-row").innerHTML = t.map(r => `<div class="tile"><div class="label">${r.tier} · ${r.points_to == null ? `${r.points_from}+` : `${r.points_from}–${r.points_to}`} points</div>
+    <div class="value">${pct0(r.churn_rate)}</div><div class="note">churned · ${comma(r.n)} customers (${pct0(r.share_of_customers)}) · ${pct0(r.share_of_churners)} of all churners</div></div>`).join("");
+  document.getElementById("p-tiers").innerHTML = `<p>Grouping customers by score gives four tiers. The top two hold
+    <strong>${pct0(S.high_tiers_share_of_customers)}</strong> of customers and <strong>${pct0(S.high_tiers_share_of_churners)}</strong> of everyone
+    who churned, so a retention effort aimed at them would reach almost every churner.</p>`;
+}
+
+/* ---------- 07 fixes ---------- */
+function fixes() {
+  document.getElementById("fix-list").innerHTML = [
+    `<strong>A cleaning step corrupted ${S.rows_changed_by_notebook_div10} rows.</strong> The notebook divided <code>avg_watch_time_per_day</code> by 10 wherever it
+     exceeded 10, calling those entry errors. They aren't: the column is <code>watch_hours / (last_login_days + 1)</code> in
+     ${pct0(S.avg_watch_identity_share)} of rows (to its 2 stored decimals), and the large values are customers who logged in within the last week.
+     Undoing it barely moves model accuracy, but the data is now used as published.`,
+    `<strong>Linear and distance models weren't given a fair test.</strong> Logistic regression and KNN ran on label-encoded categories with no scaling,
+     although the README said features were scaled. They now get one-hot categories and scaled numbers.`,
+    `<strong>One split became 15.</strong> Results came from a single 80/20 split. Every model is now scored on repeated 5-fold cross-validation,
+     with the spread across folds shown.`,
+    `<strong>A chart showed numbers no code produced.</strong> A "validation accuracy" chart listed an XGBoost model and scores that were typed in,
+     not computed. It has been replaced by the benchmark above.`,
+    `<strong>99% accuracy was read as a strong model.</strong> It mostly shows the data follows a rule. The scorecard makes that rule explicit.`,
+  ].map(s => `<li>${s}</li>`).join("");
+}
+
+/* ---------- boot ---------- */
+function renderAll() {
+  if (!document.documentElement.clientWidth) return;   // hidden pane: wait for a width
+  cliffs(); grid(); effects(); points(); models();
+}
+hero(); calc(); tiers(); fixes();
+// Draw now if the page has a width; redraw when the width changes (including a
+// pane that was hidden at load and gets shown later).
+let rt, lastW = document.documentElement.clientWidth;
+renderAll();
+new ResizeObserver(() => {
+  const w = document.documentElement.clientWidth;
+  if (w === lastW) return;
+  lastW = w; clearTimeout(rt); rt = setTimeout(renderAll, 120);
+}).observe(document.documentElement);
+</script>
+</body>
+</html>

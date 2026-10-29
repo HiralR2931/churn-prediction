@@ -1,0 +1,13 @@
+{
+  "points": {
+    "watch_lt5": 6,
+    "watch_5_20": 3,
+    "login_gt30": 3,
+    "basic_plan": 1,
+    "profiles_lt4": 1,
+    "pay_crypto_gift": 1
+  },
+  "cutoff": 7,
+  "train_accuracy": 0.9564,
+  "max_points": 12
+}

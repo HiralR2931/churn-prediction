@@ -1,6 +1,7 @@
 # Datasets are downloaded, not versioned
 *.csv
 !medicare-churn/outputs/reports/*.csv
+!netflix-churn/outputs/reports/*.csv
 
 # Python / notebooks
 __pycache__/

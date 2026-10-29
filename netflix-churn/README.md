@@ -1,169 +1,142 @@
-# Netflix Customer Churn Prediction
+# The Six-Line Churn Rule
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Scikit-learn](https://img.shields.io/badge/Scikit--learn-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)
-![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
-![Status](https://img.shields.io/badge/Status-In_Progress-f59e0b?style=for-the-badge)
+**What really drives churn in the Kaggle Netflix customer dataset, and why 99% accuracy isn't the headline.**
 
-An end-to-end machine learning pipeline for predicting customer churn using Netflix subscription behavioral data. The project covers the full data lifecycle — exploratory analysis, feature engineering, and ensemble model benchmarking.
+This dataset is a common churn-modelling exercise, and gradient boosting scores
+99.1% on it. Churn here is not subtle. Six yes-or-no conditions about viewing,
+logins and the account predict it for **95.5%** of customers. Gender, age, region,
+device and genre play no part at all. This project finds that rule, tests it
+against six classifiers on equal terms, and fixes the bugs in the original
+notebook.
 
----
+**[Open the interactive report →](https://hiralr2931.github.io/churn-prediction/netflix/)**
+It includes the cliffs, the scorecard calculator, the model benchmark and risk tiers.
 
-## Project Overview
+Part of the [churn-prediction](../) repo.
 
-Customer churn is one of the most critical challenges for subscription-based businesses. This project builds a complete ML pipeline that:
+**Stack:** Python · pandas · scikit-learn · SciPy · Matplotlib · D3
 
-- Processes and validates **5,000 Netflix customer records** across 14 features
-- Performs comprehensive EDA with multiple visualization types to uncover churn drivers
-- Engineers features through label encoding, standard scaling, and outlier treatment
-- Trains and benchmarks **6 classification models**, achieving **99.10% accuracy (Gradient Boosting)**
-- Extracts feature importance scores to identify the strongest churn predictors
+![Churn drops in steps at 5 and 20 watch hours and jumps after 30 days without a login](docs/01_cliffs.png)
 
----
+## Key findings
 
-## Dataset
-
-| Attribute | Details |
-|---|---|
-| **Source** | [Netflix Customer Churn Dataset (Kaggle)](https://www.kaggle.com/datasets/abdulwadood11220/netflix-customer-churn-dataset) |
-| **Records** | 5,000 customers |
-| **Features** | 14 variables (mixed numeric & categorical) |
-| **Target** | `churned` (1 = churned, 0 = retained) |
-| **Class Balance** | ~2,515 churned · ~2,485 retained (balanced — no SMOTE required) |
-
-**Feature Categories:**
-
-| Category | Variables |
-|---|---|
-| **Demographics** | Age, Gender, Region |
-| **Subscription** | Subscription Type, Monthly Fee, Number of Profiles |
-| **Behavioral** | Watch Hours, Avg Watch Time Per Day, Last Login Days |
-| **Preferences** | Favorite Genre, Device, Payment Method |
-
----
-
-## Data Processing Pipeline
-
-### Data Cleaning & Validation
-- Stripped whitespace from column names and categorical labels
-- Corrected decimal-point entry errors in `avg_watch_time_per_day` (values > 10 hrs ÷ 10)
-- Validated data types; confirmed zero missing values — no imputation required
-
-### Feature Engineering
-- **Label Encoding** for all categorical variables (gender, region, device, subscription type, payment method, genre)
-- Outlier flagging via box plots across numeric variables
-- Stratified 80/20 train-test split (4,000 train / 1,000 test) preserving churn class balance
-
----
-
-## Key EDA Findings
-
-### Strongest Churn Predictors
-| Feature | Correlation with Churn |
-|---|---|
-| **Watch Hours** | −0.48 |
-| **Last Login Days** | +0.47 |
-| **Avg Watch Time Per Day** | −0.27 |
-
-### Other Insights
-- Balanced classes (50/50 split) — accuracy is a reliable metric without resampling
-- **Behavioral engagement variables** far outperform demographics as predictors
-- Age and Monthly Fee show near-zero churn correlation
-- Low multicollinearity across features — each contributes distinct predictive signal
-
----
-
-## Model Results
-
-| Model | Test Accuracy |
-|---|---|
-| **Gradient Boosting** | **99.10%** |
-| Random Forest | 97.00% |
-| Decision Tree | 96.90% |
-| Logistic Regression | 88.40% |
-| KNN (K=5) | 87.80% |
-| Naive Bayes | 83.10% |
-
-### Baseline — Logistic Regression (Test Set, n=1,000)
-
-| | Predicted Stay | Predicted Churn |
+| | Finding | Number |
 |---|---|---|
-| **Actual Stay** | 429 | 68 |
-| **Actual Churn** | 48 | 455 |
+| 1 | **Churn falls off cliffs, not slopes.** It drops in steps at 5 and 20 watch hours and jumps once the last login is over 30 days old. | 82% → 45% at 5 h · 32% → 12% at 20 h |
+| 2 | **Two habits nearly decide it.** Customers watching 30+ hours almost never churn; light watchers who haven't logged in for a month always do. | 3 of 367 · 873 of 873 |
+| 3 | **Three account details matter; demographics don't.** Basic plan, crypto/gift-card payment and fewer than 4 profiles raise churn. Gender, age, region, device and genre show no effect. | chi-square p < 0.001 vs. p > 0.3 |
+| 4 | **A six-condition scorecard reproduces it.** Add the points; 7 or more predicts churn. | **95.5%** held-out accuracy |
+| 5 | **The scorecard is decisive at both ends.** | 1 of 1,406 churned at ≤4 points · 1,009 of 1,009 at ≥9 |
+| 6 | **The best model only wins at the border.** 49 of gradient boosting's 50 errors are customers scoring 5–9, right around the cut-off. | 99.1% vs. 95.5% |
 
-- **Accuracy:** 88.40%
-- **Precision / Recall / F1 (Churn class):** 0.87 / 0.90 / 0.89
+## The scorecard
 
-### Best Model — Gradient Boosting (Test Set, n=1,000)
-
-| | Predicted Stay | Predicted Churn |
-|---|---|---|
-| **Actual Stay** | 494 | 3 |
-| **Actual Churn** | 6 | 497 |
-
-- **Accuracy:** 99.10%
-- **Precision / Recall / F1 (Churn class):** 0.99 / 0.99 / 0.99
-- Only **9 total errors** out of 1,000 test customers
-
-### Why Tree-Based Models Dominate
-Ensemble models capture nonlinear relationships and complex feature interactions that linear models cannot. Naive Bayes underperformed due to violations of its feature independence assumption among correlated engagement variables.
-
----
-
-## Project Structure
-
-```
-customer-churn/
-├── NetflixdataTesting.ipynb              # Full pipeline: EDA → modeling → evaluation
-├── DataCollection,DataVisualization,
-│   DataExplorationandDataProcessing.pdf  # Milestone report — data collection & EDA
-├── ModelExplorationReport.pdf            # Model comparison & evaluation report
-└── README.md
-```
-
----
-
-## Tech Stack
-
-| Layer | Technology |
+| Condition | Points |
 |---|---|
-| **Language** | Python 3.9+ |
-| **Data Processing** | Pandas · NumPy |
-| **Visualization** | Matplotlib · Seaborn |
-| **ML Models** | Scikit-learn (Logistic Regression, Decision Tree, Random Forest, KNN, Naive Bayes, Gradient Boosting) |
-| **Environment** | Jupyter Notebook · Google Colab |
+| Under 5 watch hours | +6 |
+| 5 to under 20 watch hours | +3 |
+| Last login over 30 days ago | +3 |
+| Basic plan | +1 |
+| Fewer than 4 profiles | +1 |
+| Pays by crypto or gift card | +1 |
+| **Predict churn at** | **7 or more** (maximum 12) |
 
----
+The two watch-hour conditions don't stack. The points were found by searching small integers
+for the highest accuracy, and the cut-points are where churn jumps in the data. No other
+small integer weights for these six conditions do better. Because the cut-points were chosen
+from the full dataset, the held-out 95.5% is very slightly optimistic. Scoring the fixed card on
+all rows gives 95.6%.
 
-## Setup
+![The scorecard and churn by total points](docs/02_scorecard.png)
+
+| Risk tier | Points | Customers | Churned | Share of all churners |
+|---|---|---|---|---|
+| Low | 0–4 | 1,406 (28%) | 0.1% | 0% |
+| Watch | 5–6 | 1,043 (21%) | 9% | 4% |
+| High | 7–8 | 1,542 (31%) | 92% | 56% |
+| Very high | 9+ | 1,009 (20%) | 100% | 40% |
+
+The top two tiers hold half the customers and 96% of everyone who churned.
+
+![Plan, payment and profiles matter; gender, region, device and genre don't](docs/03_what_matters.png)
+
+## Model benchmark
+
+Every model is scored on the same **repeated stratified 5-fold cross-validation**
+(3 repeats, 15 held-out folds). Logistic regression, KNN and Naive Bayes get one-hot
+categories and scaled numbers. Tree models get ordinal codes. The scorecard is refit
+on every training fold.
+
+| Model | Features | Accuracy (± sd) | ROC-AUC | Original notebook |
+|---|---|---|---|---|
+| Gradient boosting | 12 | **99.1% ± 0.3** | 0.999 | 99.1% |
+| Gradient boosting, 5 drivers only | 5 | 98.0% ± 0.5 | 0.997 | — |
+| Decision tree | 12 | 97.8% ± 0.4 | 0.978 | 96.9% |
+| Random forest | 12 | 97.4% ± 0.5 | 0.997 | 97.0% |
+| **Six-condition scorecard** | 6 conditions | **95.5% ± 0.8** | 0.979 | — |
+| Logistic regression | 12 | 89.3% ± 1.0 | 0.967 | 88.4% |
+| KNN (k=5) | 12 | 83.2% ± 1.1 | 0.911 | 87.8% |
+| Naive Bayes | 12 | 83.1% ± 1.0 | 0.946 | 83.1% |
+
+![Model benchmark](docs/04_models.png)
+
+The original 99.1% figure for gradient boosting holds up under cross-validation.
+What changes is how to read it: it shows that the data follows a rule,
+not that the model found something subtle.
+
+## What changed from the original notebook
+
+1. **A cleaning step corrupted 57 rows.** The notebook divided `avg_watch_time_per_day`
+   by 10 wherever it exceeded 10, calling those entry errors. The column is
+   `watch_hours / (last_login_days + 1)` in every row (to the 2 decimals it is stored with).
+   The large values are customers who logged in within the last week (`last_login_days` ≤ 6).
+   Undoing the change barely moves model accuracy, but the data is now used as published.
+2. **Logistic regression and KNN weren't given a fair test.** They ran on label-encoded
+   categories with no scaling, although the README said features were scaled. They now get
+   one-hot categories and scaled numbers.
+3. **One split became 15.** All results came from a single 80/20 split; they now come from
+   repeated 5-fold cross-validation, with the spread across folds reported.
+4. **A chart showed numbers no code produced.** One "validation accuracy" chart had
+   an XGBoost model and scores typed in by hand. The benchmark above replaces it.
+5. **The notebook is kept** (`NetflixdataTesting.ipynb`) as the original exploration. The
+   pipeline below supersedes it.
+
+## Run it
 
 ```bash
-git clone https://github.com/HiralR2931/customer-churn.git
-cd customer-churn
-
-pip install pandas numpy matplotlib seaborn scikit-learn
-
-# Open notebook
-jupyter notebook NetflixdataTesting.ipynb
+pip install -r requirements.txt
+# download netflix_customer_churn.csv from Kaggle (link below) into data/
+python run_pipeline.py
 ```
 
-> **Note:** The notebook uses `google.colab` for file upload. When running locally, replace the `files.upload()` call with `pd.read_csv('path/to/netflix_customer_churn.csv')`.
+The full run takes about 20 seconds on a laptop: checks, analysis, benchmark, charts and `site/data.js`.
 
----
+## Project layout
 
-## Next Steps
+```
+netflix-churn/
+├── run_pipeline.py          # end-to-end orchestrator
+├── src/
+│   ├── config.py            # paths, features, scorecard conditions, CV settings
+│   ├── data.py              # load + data checks (derived column, fee = plan)
+│   ├── analysis.py          # feature tests, cliffs, interaction grid, scorecard, tiers
+│   ├── models.py            # six classifiers + scorecard, repeated 5-fold CV
+│   ├── charts.py            # README charts (docs/*.png)
+│   └── web_report.py        # data for the interactive report (site/data.js)
+├── site/                    # interactive report, published with GitHub Pages
+├── docs/                    # README charts
+├── outputs/reports/         # every table behind the findings (CSV/JSON)
+├── data/                    # place the Kaggle CSV here (git-ignored)
+├── NetflixdataTesting.ipynb # original notebook
+└── *.pdf                    # original milestone reports
+```
 
-- [ ] Hyperparameter tuning (GridSearchCV) for Gradient Boosting and Random Forest
-- [ ] Churn probability scoring system for risk-level customer prioritization
-- [ ] Customer segmentation analysis (identify high-risk behavioral groups)
-- [ ] Dynamic pricing optimization model based on churn probability scores
-- [ ] Interactive Streamlit dashboard for stakeholder exploration
+## Data note
 
----
+The [Netflix Customer Churn Dataset](https://www.kaggle.com/datasets/abdulwadood11220/netflix-customer-churn-dataset)
+on Kaggle has 5,000 rows, 14 columns, no missing values, and churn at 50.3%. It is
+**synthetic**, not Netflix's records. The sharp thresholds, a derived column, a fee
+fixed by plan, and five features with no effect all show it was generated from rules.
+The findings describe this dataset only, and say nothing about real Netflix customers.
 
-## Author
-
-**Hiral Rana**
-MS Data Analytics Engineering · Northeastern University
-
----
+**Author:** Hiral Rana · MS Data Analytics Engineering, Northeastern University
