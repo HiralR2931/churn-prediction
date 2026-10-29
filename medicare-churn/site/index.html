@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Medicare Advantage Stall</title>
+<meta name="description" content="County-level analysis of Original Medicare to Medicare Advantage switching, 2013–2025, with a walk-forward forecast for Dec 2025 → Feb 2026.">
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --base: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --ma: #2a78d6; --om: #eb6834; --aqua: #1baf7a; --yellow: #eda100; --red: #e34948;
+    --mid: #f0efec; --nodata: #e6e5df; --pos-end: #0d366b; --neg-end: #9e2a2b;
+    --wash: rgba(42,120,214,0.10); --chip: #f0efec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --base: #383835; --border: rgba(255,255,255,0.10);
+      --ma: #3987e5; --om: #d95926; --aqua: #199e70; --yellow: #c98500; --red: #e66767;
+      --mid: #383835; --nodata: #232322; --pos-end: #b7d3f6; --neg-end: #f4b3b2;
+      --wash: rgba(57,135,229,0.16); --chip: #262624;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --base: #383835; --border: rgba(255,255,255,0.10);
+    --ma: #3987e5; --om: #d95926; --aqua: #199e70; --yellow: #c98500; --red: #e66767;
+    --mid: #383835; --nodata: #232322; --pos-end: #b7d3f6; --neg-end: #f4b3b2;
+    --wash: rgba(57,135,229,0.16); --chip: #262624;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--ma); }
+  nav.top {
+    position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--page) 88%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--border);
+  }
+  nav.top .in { max-width: 1120px; margin: 0 auto; padding: 10px 24px; display: flex; gap: 18px; align-items: center; }
+  nav.top .brand { font-weight: 650; font-size: 14px; white-space: nowrap; }
+  nav.top .links { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: none; flex: 1; }
+  nav.top .links a { color: var(--ink2); text-decoration: none; font-size: 13.5px; white-space: nowrap; }
+  nav.top .links a:hover { color: var(--ink); }
+  button.theme {
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink2);
+    border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+
+  header.hero { max-width: 1120px; margin: 0 auto; padding: 72px 24px 40px; }
+  .eyebrow { color: var(--ink2); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 18px; }
+  h1 { font-size: clamp(34px, 5.4vw, 60px); line-height: 1.05; letter-spacing: -0.025em; margin: 0 0 22px; max-width: 16ch; font-weight: 700; }
+  h1 em { font-style: normal; color: var(--ma); }
+  .lede { font-size: clamp(17px, 2vw, 20px); color: var(--ink2); max-width: 62ch; margin: 0; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border);
+           border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-top: 44px; }
+  .tile { background: var(--surface); padding: 20px 22px; }
+  .tile .label { font-size: 13px; color: var(--ink2); }
+  .tile .value { font-size: 34px; font-weight: 650; letter-spacing: -0.02em; margin: 4px 0 2px; }
+  .tile.hero-tile .value { font-size: 52px; line-height: 1.05; }
+  .tile .note { font-size: 13px; color: var(--muted); }
+
+  section.ch { max-width: 1120px; margin: 0 auto; padding: 56px 24px 8px; }
+  .ch-head { display: grid; grid-template-columns: 64px 1fr; gap: 0 8px; margin-bottom: 18px; }
+  .ch-num { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 9px; }
+  h2 { font-size: clamp(24px, 3vw, 32px); line-height: 1.15; letter-spacing: -0.015em; margin: 0 0 10px; font-weight: 680; }
+  .prose { max-width: 66ch; color: var(--ink2); }
+  .prose p { margin: 0 0 12px; }
+  .prose strong { color: var(--ink); font-weight: 600; }
+  .finding {
+    border-left: 3px solid var(--ma); padding: 4px 0 4px 16px; margin: 18px 0 0;
+    color: var(--ink); font-size: 17px; max-width: 66ch;
+  }
+  .finding b { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink2); font-weight: 600; margin-bottom: 2px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 20px 14px; margin-top: 22px; }
+  .card h3 { font-size: 15px; margin: 0 0 2px; font-weight: 620; }
+  .card .sub { font-size: 13px; color: var(--ink2); margin: 0 0 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .grid2 > .card { margin-top: 22px; }
+  .chart { width: 100%; position: relative; }
+  .chart svg { display: block; overflow: visible; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink2); margin: 0 0 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+  .legend i.dot { width: 9px; height: 9px; border-radius: 50%; }
+  .legend i.ring { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--muted); background: transparent; }
+
+  .axis text { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .axis line, .axis path { stroke: var(--base); }
+  .gridline line { stroke: var(--grid); }
+  .gridline path { display: none; }
+  .lbl { fill: var(--ink); font-size: 12.5px; }
+  .lbl2 { fill: var(--ink2); font-size: 12px; }
+
+  details.table { margin-top: 8px; font-size: 13px; }
+  details.table summary { cursor: pointer; color: var(--ink2); }
+  .tw { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th { color: var(--ink2); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
+  .seg { display: inline-flex; flex-wrap: wrap; background: var(--chip); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { border: 0; background: transparent; color: var(--ink2); font: inherit; font-size: 13px;
+                padding: 5px 10px; border-radius: 8px; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--border); font-weight: 600; }
+  input.search { border: 1px solid var(--border); background: var(--surface); color: var(--ink); border-radius: 10px;
+                 padding: 7px 12px; font: inherit; font-size: 14px; min-width: 220px; }
+  .scale { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink2); margin-top: 8px; flex-wrap: wrap; }
+  .scale .bar { width: 220px; height: 10px; border-radius: 3px; }
+  .scale .nd { display: inline-flex; gap: 6px; align-items: center; }
+  .scale .nd i { width: 12px; height: 10px; border-radius: 2px; background: var(--nodata); display: inline-block; box-shadow: inset 0 0 0 1px var(--border); }
+  .pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--ink2); }
+  .pill.up::before { content: "▲ "; color: var(--ma); }
+  .pill.down::before { content: "▼ "; color: var(--red); }
+  button.more { margin-top: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+                border-radius: 10px; padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+
+  #tip {
+    position: fixed; pointer-events: none; z-index: 20; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 10px; padding: 8px 11px; font-size: 13px; line-height: 1.45;
+    box-shadow: 0 6px 24px rgba(0,0,0,.12); opacity: 0; transition: opacity .08s; max-width: 280px;
+  }
+  #tip .t { font-weight: 620; margin-bottom: 2px; }
+  #tip .r { display: flex; justify-content: space-between; gap: 14px; color: var(--ink2); }
+  #tip .r b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  #tip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+  footer { max-width: 1120px; margin: 64px auto 0; padding: 28px 24px 56px; border-top: 1px solid var(--border);
+           color: var(--ink2); font-size: 14px; }
+  .loading { color: var(--muted); font-size: 13px; padding: 40px 0; text-align: center; }
+
+  @media (max-width: 820px) {
+    .tiles { grid-template-columns: 1fr 1fr; }
+    .grid2 { grid-template-columns: 1fr; gap: 0; }
+    .ch-head { grid-template-columns: 1fr; }
+    .ch-num { padding: 0 0 4px; }
+    nav.top .brand { display: none; }
+  }
+  @media (max-width: 480px) {
+    header.hero, section.ch, footer, nav.top .in { padding-left: 16px; padding-right: 16px; }
+    .tiles { grid-template-columns: 1fr; }
+    .card { padding: 16px 14px 12px; }
+    input.search { min-width: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<nav class="top"><div class="in">
+  <span class="brand">The Medicare Advantage Stall</span>
+  <div class="links">
+    <a href="#stall">The stall</a><a href="#map">Map</a><a href="#who">Who switches</a>
+    <a href="#states">States</a><a href="#forecast">Forecasting</a><a href="#outlook">2026 outlook</a>
+    <a href="#decline">Original model</a><a href="#method">Method</a>
+  </div>
+  <button class="theme" id="theme" type="button" aria-label="Toggle color theme">Theme</button>
+</div></nav>
+
+<header class="hero">
+  <p class="eyebrow">CMS Medicare Monthly Enrollment · 2013–2025 · every U.S. county</p>
+  <h1>Medicare Advantage became the majority. <em>Then the switching stalled.</em></h1>
+  <p class="lede" id="lede"></p>
+  <div class="tiles" id="tiles"></div>
+</header>
+
+<section class="ch" id="stall">
+  <div class="ch-head"><div class="ch-num">01</div><div>
+    <h2>A decade-long migration, and a sudden slowdown</h2>
+    <div class="prose">
+      <p>Each fall, people on Medicare choose their coverage for the next year, and those choices take
+      effect on <strong>January 1</strong>. Comparing a county's Medicare Advantage (MA) share in December
+      with the following February therefore shows how many people moved from Original Medicare
+      to a private MA plan that season.</p>
+    </div>
+  </div></div>
+  <div class="grid2">
+    <div class="card"><h3>Beneficiaries by coverage type</h3><p class="sub">Each December, millions, CMS national totals</p>
+      <div class="legend"><span><i style="background:var(--ma)"></i>Medicare Advantage</span><span><i style="background:var(--om)"></i>Original Medicare</span></div>
+      <div class="chart" id="c-enroll"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-enroll"></div></details></div>
+    <div class="card"><h3>Size of each switching season</h3><p class="sub">Median county change in MA share, December → February (pp)</p>
+      <div class="chart" id="c-wave"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-wave"></div></details></div>
+  </div>
+  <p class="finding" id="f-stall"></p>
+</section>
+
+<section class="ch" id="map">
+  <div class="ch-head"><div class="ch-num">02</div><div>
+    <h2>Where people switched</h2>
+    <div class="prose"><p>Pick a season to see each county's change in MA share. Choose
+    <strong>2026 outlook</strong> to see the forecast for Dec 2025 → Feb 2026, shown relative to the median county.</p></div>
+  </div></div>
+  <div class="card">
+    <div class="controls"><div class="seg" id="map-years" role="group" aria-label="Season"></div></div>
+    <div class="chart" id="c-map"><div class="loading">Loading county map…</div></div>
+    <div class="scale" id="map-scale"></div>
+  </div>
+</section>
+
+<section class="ch" id="who">
+  <div class="ch-head"><div class="ch-num">03</div><div>
+    <h2>Who switches, and when it stops</h2>
+    <div class="prose"><p>To compare counties fairly across a decade in which the national pace rose and fell, each
+    season is measured <strong>relative to the median county</strong> that season. A positive value
+    means the county switched faster than the typical county did.</p></div>
+  </div></div>
+  <div class="grid2">
+    <div class="card"><h3>The adoption curve</h3><p class="sub">Relative switching by the county's MA share going into the season, 2015–2024</p>
+      <div class="chart" id="c-sat"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-sat"></div></details></div>
+    <div class="card"><h3>County traits linked to switching</h3><p class="sub">Spearman correlation with relative switching: median of the 10 seasons 2015–2024</p>
+      <div class="chart" id="c-corr"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-corr"></div></details></div>
+  </div>
+  <p class="finding" id="f-who"></p>
+</section>
+
+<section class="ch" id="states">
+  <div class="ch-head"><div class="ch-num">04</div><div>
+    <h2>The slowdown reached almost every state</h2>
+    <div class="prose"><p id="p-states"></p></div>
+  </div></div>
+  <div class="card"><h3>Median county change in MA share, by state (pp)</h3>
+    <div class="legend"><span><i class="ring"></i>Dec 2023 → Feb 2024</span><span><i class="dot" style="background:var(--ma)"></i>Dec 2024 → Feb 2025</span></div>
+    <div class="chart" id="c-states"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-states"></div></details></div>
+</section>
+
+<section class="ch" id="forecast">
+  <div class="ch-head"><div class="ch-num">05</div><div>
+    <h2>Can we predict which counties lead?</h2>
+    <div class="prose">
+      <p>Four ways of ranking counties were tested in a <strong>walk-forward backtest</strong>: for each season from 2019
+      on, every method sees only earlier years, then ranks counties by expected switching. A score of 1.0
+      would mean a perfect ranking.</p>
+    </div>
+  </div></div>
+  <div class="card"><h3>Rank accuracy by method and season</h3><p class="sub">Spearman correlation between predicted and actual relative switching, counties with ≥1,000 beneficiaries</p>
+    <div class="legend" id="l-bt"></div>
+    <div class="chart" id="c-bt"></div><div class="tw" id="t-bt"></div></div>
+  <p class="finding" id="f-bt"></p>
+</section>
+
+<section class="ch" id="outlook">
+  <div class="ch-head"><div class="ch-num">06</div><div>
+    <h2>2026 outlook: Dec 2025 → Feb 2026</h2>
+    <div class="prose"><p>Each county is scored with the blend, which was the most reliable method in the backtest. Values are
+    relative to the median county, whatever its pace turns out to be. A county at +1.0 pp is expected to switch one point faster
+    than the median county. CMS has not yet published February 2026, so these forecasts are unscored.</p></div>
+  </div></div>
+  <div class="card">
+    <div class="controls">
+      <input class="search" id="q" type="search" placeholder="Search county or state" aria-label="Search counties">
+      <div class="seg" id="outlook-filter" role="group" aria-label="Outlook"></div>
+    </div>
+    <div class="tw" id="t-outlook"></div>
+    <button class="more" id="more" type="button">Show more</button>
+  </div>
+</section>
+
+<section class="ch" id="decline">
+  <div class="ch-head"><div class="ch-num">07</div><div>
+    <h2>The original question: which counties lose enrollment?</h2>
+    <div class="prose" id="p-decline"></div>
+  </div></div>
+  <div class="card"><h3>Share of county seasons labelled as churn, by county size</h3><p class="sub">Total beneficiaries fell more than 0.5% from December to February, 2013–2024</p>
+    <div class="chart" id="c-decline"></div><details class="table"><summary>Data table</summary><div class="tw" id="t-decline"></div></details></div>
+</section>
+
+<section class="ch" id="method">
+  <div class="ch-head"><div class="ch-num">08</div><div>
+    <h2>Method and caveats</h2>
+    <div class="prose">
+      <p><strong>Data.</strong> CMS Medicare Monthly Enrollment, county level, January 2013 – December 2025 (≈564k rows).
+      Counts of 1–10 are suppressed by CMS and imputed at 5.</p>
+      <p><strong>Switching.</strong> Change in MA share between December and the following February. This is a net measure:
+      it also moves when people join or leave Medicare, and when plans close mid-year. CMS does not publish individual transitions.
+      "MA" is CMS's "Medicare Advantage and other health plans" count, which includes a small number of cost plans and PACE.</p>
+      <p><strong>National vs. county figures.</strong> National shares and totals use CMS's national rows. About 0.5 million people
+      have no county on file, so county figures sum to slightly less. County comparisons are made against the median county
+      each season, not the national total.</p>
+      <p><strong>Small counties.</strong> Counties with fewer than 1,000 beneficiaries move several points on a handful
+      of people. They are greyed out on the map and left out of the statistics and models.</p>
+      <p><strong>Forecasting.</strong> Rankings are scored on seasons each method never saw. The blend weights the county's own
+      last season and its state's median last season equally. Correlations describe associations, not causes.</p>
+      <p><strong>Connecticut.</strong> Connecticut replaced its 8 counties with 9 planning regions in 2022. Its Dec 2021 → Feb 2022
+      season cannot be measured, its first seasons as regions have no prior-season history for forecasting, and the
+      county boundaries used for the map predate the change, so it is not drawn.</p>
+      <p><strong>Code.</strong> <a href="https://github.com/HiralR2931/churn-prediction/tree/main/medicare-churn">github.com/HiralR2931/churn-prediction</a>.
+      Every number on this page is generated by <code>run_pipeline.py</code>.</p>
+    </div>
+  </div></div>
+</section>
+
+<footer>Built by Hiral Rana · Data: <a href="https://data.cms.gov/summary-statistics-on-beneficiary-enrollment/medicare-and-medicaid-reports/medicare-monthly-enrollment">CMS Medicare Monthly Enrollment</a></footer>
+
+<div id="tip" role="tooltip"></div>
+
+<script src="data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script>
+const R = window.REPORT, S = R.summary;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt1 = d3.format(".1f"), fmt2 = d3.format(".2f"), pct0 = d3.format(".0%"), comma = d3.format(",");
+const sgn = (v, f = fmt1) => (v > 0 ? "+" : v < 0 ? "−" : "") + f(Math.abs(v));
+const MAP_TOPO = "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/counties-albers-10m.json";
+
+/* ---------- theme ---------- */
+const themeBtn = document.getElementById("theme");
+function currentTheme() {
+  const t = document.documentElement.dataset.theme;
+  return t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+}
+function setThemeLabel() { themeBtn.textContent = currentTheme() === "dark" ? "Light mode" : "Dark mode"; }
+try { const saved = localStorage.getItem("theme"); if (saved) document.documentElement.dataset.theme = saved; } catch (e) {}
+themeBtn.addEventListener("click", () => {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("theme", next); } catch (e) {}
+  setThemeLabel(); renderAll();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { setThemeLabel(); renderAll(); });
+setThemeLabel();
+
+/* ---------- tooltip ---------- */
+const tip = document.getElementById("tip");
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.style.opacity = 1;
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip() { tip.style.opacity = 0; }
+const row = (k, v, color) => `<div class="r"><span>${color ? `<i style="background:${color}"></i>` : ""}${k}</span><b>${v}</b></div>`;
+
+/* ---------- helpers ---------- */
+function frame(id, height, m) {
+  const el = document.getElementById(id); el.innerHTML = "";
+  const W = el.clientWidth, w = W - m.l - m.r, h = height - m.t - m.b;
+  const svg = d3.select(el).append("svg").attr("width", W).attr("height", height);
+  return { el, svg, g: svg.append("g").attr("transform", `translate(${m.l},${m.t})`), w, h, W };
+}
+function yGrid(g, y, w, ticks = 5, f) {
+  g.append("g").attr("class", "gridline").call(d3.axisLeft(y).ticks(ticks).tickSize(-w).tickFormat(""));
+  g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(ticks).tickSize(0).tickPadding(8).tickFormat(f))
+    .call(s => s.select(".domain").remove());
+}
+function table(id, cols, rows) {
+  const el = document.getElementById(id);
+  el.innerHTML = `<table><thead><tr>${cols.map(c => `<th class="${c.num ? "num" : ""}">${c.h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${cols.map(c => `<td class="${c.num ? "num" : ""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+const barPath = (x0, x1, y, bh, dir) => {   // horizontal bar, 4px rounded data-end, square at baseline
+  const r = Math.min(4, Math.abs(x1 - x0) / 2, bh / 2);
+  if (dir > 0) return `M${x0},${y}H${x1 - r}Q${x1},${y} ${x1},${y + r}V${y + bh - r}Q${x1},${y + bh} ${x1 - r},${y + bh}H${x0}Z`;
+  return `M${x0},${y}H${x1 + r}Q${x1},${y} ${x1},${y + r}V${y + bh - r}Q${x1},${y + bh} ${x1 + r},${y + bh}H${x0}Z`;
+};
+const colPath = (x, y0, y1, bw) => {        // vertical column, rounded top
+  const r = Math.min(4, bw / 2, Math.abs(y0 - y1));
+  return `M${x},${y0}V${y1 + r}Q${x},${y1} ${x + r},${y1}H${x + bw - r}Q${x + bw},${y1} ${x + bw},${y1 + r}V${y0}Z`;
+};
+
+/* ---------- hero ---------- */
+function hero() {
+  document.getElementById("lede").textContent =
+    `In December ${S.first_year}, ${fmt1(S.ma_share_first)}% of people on Medicare were in a private Medicare Advantage plan. ` +
+    `By December ${S.last_year} it was ${fmt1(S.ma_share_last)}%, and MA had passed Original Medicare. But the yearly wave of ` +
+    `people switching over peaked in ${S.peak_window_year} and has since fallen by more than two thirds.`;
+  const best = S.backtest_mean_spearman[S.best_method];
+  document.getElementById("tiles").innerHTML = [
+    ["hero-tile", "MA share of beneficiaries", `${fmt1(S.ma_share_last)}%`, `Dec ${S.last_year}, up from ${fmt1(S.ma_share_first)}% in ${S.first_year}`],
+    ["", "Switching season, median county", `+${fmt1(S.latest_county_median_shift_pp)} pp`, `Dec ${S.last_year - 1} → Feb ${S.last_year}; peak +${fmt1(S.peak_county_median_shift_pp)} pp in ${S.peak_window_year}`],
+    ["", "Counties that slowed", pct0(S.share_counties_slowed), `vs. the season before, of ${comma(S.counties_compared)} counties`],
+    ["", "Best forecast rank accuracy", fmt2(best), `${S.best_method}, walk-forward avg.`],
+  ].map(([c, l, v, n]) => `<div class="tile ${c}"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join("");
+}
+
+/* ---------- 01 enrollment lines ---------- */
+function enroll() {
+  const d = R.national, m = { t: 10, r: 64, b: 28, l: 36 };
+  const F = frame("c-enroll", 290, m), { g, w, h } = F;
+  const x = d3.scaleLinear().domain(d3.extent(d, r => r.year)).range([0, w]);
+  const y = d3.scaleLinear().domain([10, 42]).range([h, 0]);
+  yGrid(g, y, w, 5, v => v + "M");
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`)
+    .call(d3.axisBottom(x).ticks(Math.min(7, w / 60)).tickFormat(d3.format("d")).tickSize(0).tickPadding(8));
+  const series = [["ma_millions_dec", css("--ma"), "Medicare Advantage"], ["om_millions_dec", css("--om"), "Original Medicare"]];
+  const cross = d.find(r => r.ma_millions_dec > r.om_millions_dec);
+  g.append("line").attr("x1", x(cross.year)).attr("x2", x(cross.year)).attr("y1", 0).attr("y2", h).attr("stroke", css("--base"));
+  g.append("text").attr("class", "lbl2").attr("x", x(cross.year) - 6).attr("y", 12).attr("text-anchor", "end").text(`MA passes Original, ${cross.year}`);
+  series.forEach(([k, c]) => {
+    g.append("path").datum(d).attr("fill", "none").attr("stroke", c).attr("stroke-width", 2)
+      .attr("stroke-linejoin", "round").attr("stroke-linecap", "round").attr("d", d3.line().x(r => x(r.year)).y(r => y(r[k])));
+    const last = d[d.length - 1];
+    g.append("circle").attr("cx", x(last.year)).attr("cy", y(last[k])).attr("r", 4.5).attr("fill", c).attr("stroke", css("--surface")).attr("stroke-width", 2);
+    g.append("text").attr("class", "lbl").attr("x", x(last.year) + 9).attr("y", y(last[k]) + (k.startsWith("ma") ? -4 : 12)).text(fmt1(last[k]) + "M");
+  });
+  const hair = g.append("line").attr("y1", 0).attr("y2", h).attr("stroke", css("--muted")).attr("opacity", 0);
+  const dots = series.map(([, c]) => g.append("circle").attr("r", 4.5).attr("fill", c).attr("stroke", css("--surface")).attr("stroke-width", 2).attr("opacity", 0));
+  g.append("rect").attr("width", w).attr("height", h).attr("fill", "transparent")
+    .on("pointermove", ev => {
+      const yr = Math.round(x.invert(d3.pointer(ev)[0])), r = d.find(v => v.year === yr); if (!r) return;
+      hair.attr("x1", x(yr)).attr("x2", x(yr)).attr("opacity", 1);
+      series.forEach(([k], i) => dots[i].attr("cx", x(yr)).attr("cy", y(r[k])).attr("opacity", 1));
+      showTip(ev, `<div class="t">December ${yr}</div>` + series.map(([k, c, n]) => row(n, fmt1(r[k]) + "M", c)).join("") + row("MA share", fmt1(r.ma_share_dec) + "%"));
+    })
+    .on("pointerleave", () => { hair.attr("opacity", 0); dots.forEach(c => c.attr("opacity", 0)); hideTip(); });
+  table("t-enroll", [{ h: "December", f: r => r.year }, { h: "Medicare Advantage (M)", num: 1, f: r => fmt2(r.ma_millions_dec) },
+    { h: "Original Medicare (M)", num: 1, f: r => fmt2(r.om_millions_dec) }, { h: "MA share", num: 1, f: r => fmt1(r.ma_share_dec) + "%" }], d);
+}
+
+/* ---------- 01 switching wave ---------- */
+function wave() {
+  const d = R.national.filter(r => r.county_median_shift_pp != null), m = { t: 22, r: 8, b: 28, l: 36 };
+  const F = frame("c-wave", 290, m), { g, w, h } = F;
+  const x = d3.scaleBand().domain(d.map(r => r.year)).range([0, w]).padding(0.3);
+  const y = d3.scaleLinear().domain([0, 3.4]).range([h, 0]);
+  yGrid(g, y, w, 4, v => v);
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`)
+    .call(d3.axisBottom(x).tickSize(0).tickPadding(8).tickFormat(v => "'" + String(v).slice(2)));
+  const bw = Math.min(24, x.bandwidth()), off = (x.bandwidth() - bw) / 2;
+  const peak = d3.greatest(d, r => r.county_median_shift_pp), last = d[d.length - 1];
+  g.selectAll("path.bar").data(d).join("path").attr("class", "bar").attr("fill", css("--ma"))
+    .attr("d", r => colPath(x(r.year) + off, h, y(r.county_median_shift_pp), bw));
+  [peak, last].forEach(r => g.append("text").attr("class", "lbl").attr("text-anchor", "middle")
+    .attr("x", x(r.year) + x.bandwidth() / 2).attr("y", y(r.county_median_shift_pp) - 6).text("+" + fmt1(r.county_median_shift_pp)));
+  g.selectAll("rect.hit").data(d).join("rect").attr("x", r => x(r.year)).attr("width", x.bandwidth()).attr("y", 0).attr("height", h).attr("fill", "transparent")
+    .on("pointermove", (ev, r) => showTip(ev, `<div class="t">Dec ${r.year} → Feb ${r.year + 1}</div>` +
+      row("Median county", sgn(r.county_median_shift_pp, fmt2) + " pp", css("--ma")) +
+      row("10th–90th percentile", `${sgn(r.county_p10_shift_pp, fmt1)} to ${sgn(r.county_p90_shift_pp, fmt1)}`) +
+      row("Counties where MA fell", pct0(r.share_counties_ma_fell))))
+    .on("pointerleave", hideTip);
+  table("t-wave", [{ h: "Season", f: r => `Dec ${r.year} → Feb ${r.year + 1}` }, { h: "Median county (pp)", num: 1, f: r => fmt2(r.county_median_shift_pp) },
+    { h: "National (pp)", num: 1, f: r => fmt2(r.national_shift_pp) }, { h: "Counties where MA fell", num: 1, f: r => pct0(r.share_counties_ma_fell) }], d);
+  document.getElementById("f-stall").innerHTML = `<b>Finding</b>The median county's switching season peaked at
+    +${fmt1(S.peak_county_median_shift_pp)} pp in ${S.peak_window_year} and fell to +${fmt1(S.latest_county_median_shift_pp)} pp
+    in ${S.latest_window.replace("->", "→")}. ${pct0(S.share_counties_slowed)} of counties switched more slowly than the season before,
+    and in ${pct0(S.share_counties_ma_fell)} the MA share fell.`;
+}
+
+/* ---------- 02 map ---------- */
+let topo = null, mapMode = null;
+function divScale(lim) {
+  return d3.scaleDiverging(d3.piecewise(d3.interpolateLab, [css("--neg-end"), css("--red"), css("--mid"), css("--ma"), css("--pos-end")]))
+    .domain([-lim, 0, lim]).clamp(true);
+}
+function mapValue(fips) {
+  if (mapMode === "outlook") { const f = R.forecastByFips[fips]; return f ? f.pred : null; }
+  const c = R.map.counties[fips]; if (!c) return null;
+  const v = c.s[R.map.years.indexOf(mapMode)];
+  return v === "s" ? null : v;
+}
+function mapButtons() {
+  const opts = R.map.years.map(y => [y, `'${String(y).slice(2)}–'${String(y + 1).slice(2)}`]).concat([["outlook", "2026 outlook"]]);
+  const seg = document.getElementById("map-years");
+  seg.innerHTML = opts.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${String(v) === String(mapMode)}">${l}</button>`).join("");
+  seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    mapMode = b.dataset.v === "outlook" ? "outlook" : +b.dataset.v; mapButtons(); paintMap();
+  }));
+}
+function drawMap() {
+  if (!topo) return;
+  const el = document.getElementById("c-map"); el.innerHTML = "";
+  const W = el.clientWidth, H = W * 610 / 975;
+  const svg = d3.select(el).append("svg").attr("viewBox", "0 0 975 610").attr("width", W).attr("height", H);
+  const path = d3.geoPath();
+  svg.append("g").attr("class", "counties").selectAll("path")
+    .data(topojson.feature(topo, topo.objects.counties).features).join("path").attr("d", path)
+    .on("pointermove", (ev, f) => {
+      const c = R.map.counties[f.id], v = mapValue(f.id), fc = R.forecastByFips[f.id];
+      const name = c ? c.n : (f.properties.name || f.id);
+      const small = mapMode === "outlook" ? !!c && !fc : !!c && c.s[R.map.years.indexOf(mapMode)] === "s";
+      let html = `<div class="t">${name}</div>`;
+      if (v == null) html += row(small ? "Under 1,000 beneficiaries" : "No data", "");
+      else if (mapMode === "outlook") html += row("Forecast vs. median county", sgn(v, fmt2) + " pp") + row("Outlook", fc.outlook);
+      else html += row(`Dec ${mapMode} → Feb ${mapMode + 1}`, sgn(v, fmt2) + " pp");
+      if (fc) html += row("Beneficiaries (Dec 2025)", comma(fc.benes));
+      showTip(ev, html);
+      d3.select(ev.currentTarget).attr("stroke", css("--ink")).attr("stroke-width", 1.2).raise();
+    })
+    .on("pointerleave", ev => { d3.select(ev.currentTarget).attr("stroke", null); hideTip(); });
+  svg.append("path").datum(topojson.mesh(topo, topo.objects.states, (a, b) => a !== b))
+    .attr("fill", "none").attr("stroke", css("--surface")).attr("stroke-width", 1.1).attr("d", path).attr("pointer-events", "none");
+  paintMap();
+}
+function paintMap() {
+  const lim = 3, sc = divScale(lim), nd = css("--nodata");
+  d3.select("#c-map g.counties").selectAll("path").attr("fill", f => { const v = mapValue(f.id); return v == null ? nd : sc(v); });
+  const stops = d3.range(0, 1.01, 0.1).map(t => sc(-lim + 2 * lim * t)).join(",");
+  const label = mapMode === "outlook" ? "vs. the median county (pp)" : "change in MA share (pp)";
+  document.getElementById("map-scale").innerHTML =
+    `<span>${mapMode === "outlook" ? "Behind" : "MA share fell"} −${lim}</span><span class="bar" style="background:linear-gradient(90deg,${stops})"></span>
+     <span>+${lim} ${mapMode === "outlook" ? "Ahead" : "pp"}</span><span>· ${label}</span><span class="nd"><i></i>Under 1,000 beneficiaries or no data</span>`;
+}
+
+/* ---------- 03 saturation ---------- */
+function saturation() {
+  const d = R.saturation.map(r => ({ ...r, mid: (r.ma_share_from + Math.min(r.ma_share_to, 80)) / 2 }));
+  const m = { t: 12, r: 12, b: 40, l: 40 }, F = frame("c-sat", 290, m), { g, w, h } = F;
+  const x = d3.scaleLinear().domain([0, 80]).range([0, w]);
+  const y = d3.scaleLinear().domain([-2.2, 1.0]).range([h, 0]);
+  yGrid(g, y, w, 5, v => sgn(v, d3.format(".1f")));
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`)
+    .call(d3.axisBottom(x).tickValues([0, 20, 40, 60, 80]).tickFormat(v => v === 80 ? "80%+" : v + "%").tickSize(0).tickPadding(8));
+  g.append("text").attr("class", "lbl2").attr("x", w / 2).attr("y", h + 34).attr("text-anchor", "middle").text("County MA share going into the season");
+  g.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(0)).attr("y2", y(0)).attr("stroke", css("--ink2"));
+  g.append("text").attr("class", "lbl2").attr("x", w).attr("y", y(0) - 6).attr("text-anchor", "end").text("median county");
+  g.append("path").datum(d).attr("fill", css("--wash")).attr("d", d3.area().x(r => x(r.mid)).y0(r => y(r.q25)).y1(r => y(r.q75)).curve(d3.curveMonotoneX));
+  g.append("path").datum(d).attr("fill", "none").attr("stroke", css("--ma")).attr("stroke-width", 2).attr("d", d3.line().x(r => x(r.mid)).y(r => y(r.median)).curve(d3.curveMonotoneX));
+  g.selectAll("circle").data(d).join("circle").attr("cx", r => x(r.mid)).attr("cy", r => y(r.median)).attr("r", 4.5)
+    .attr("fill", css("--ma")).attr("stroke", css("--surface")).attr("stroke-width", 2);
+  g.selectAll("rect.hit").data(d).join("rect").attr("x", r => x(r.ma_share_from)).attr("width", r => x(Math.min(r.ma_share_to, 80)) - x(r.ma_share_from))
+    .attr("y", 0).attr("height", h).attr("fill", "transparent")
+    .on("pointermove", (ev, r) => showTip(ev, `<div class="t">MA share ${r.ma_share_from}–${r.ma_share_to < 100 ? r.ma_share_to + "%" : "100%"}</div>` +
+      row("Median vs. median county", sgn(r.median, fmt2) + " pp", css("--ma")) + row("Middle half", `${sgn(r.q25, fmt2)} to ${sgn(r.q75, fmt2)}`) + row("County seasons", comma(r.n))))
+    .on("pointerleave", hideTip);
+  const lab = r => r.ma_share_to < 100 ? `${r.ma_share_from}–${r.ma_share_to}%` : `${r.ma_share_from}%+`;
+  table("t-sat", [{ h: "MA share", f: lab }, { h: "Median (pp)", num: 1, f: r => fmt2(r.median) }, { h: "25th pct", num: 1, f: r => fmt2(r.q25) },
+    { h: "75th pct", num: 1, f: r => fmt2(r.q75) }, { h: "County seasons", num: 1, f: r => comma(r.n) }], d);
+}
+
+/* ---------- 03 correlates ---------- */
+const NAMES = { lis_ratio: "Low-income subsidy share", dual_ratio: "Dual-eligible share", disabled_ratio: "Disabled share",
+  black_ratio: "Black beneficiary share", log_tot_benes: "County size", ma_ratio: "Current MA share",
+  hispanic_ratio: "Hispanic beneficiary share", age_85_plus_ratio: "Age 85+ share" };
+function correlates() {
+  const d = [...R.correlates].sort((a, b) => b.rho - a.rho);
+  const el = document.getElementById("c-corr"), narrow = el.clientWidth < 420;
+  const m = { t: 4, r: 40, b: 24, l: narrow ? 130 : 176 }, F = frame("c-corr", 290, m), { g, w, h } = F;
+  const x = d3.scaleLinear().domain([-0.3, 0.4]).range([0, w]);
+  const y = d3.scaleBand().domain(d.map(r => r.feature)).range([0, h]).padding(0.35);
+  g.append("g").attr("class", "gridline").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickSize(-h).tickFormat(""));
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickSize(0).tickPadding(8).tickFormat(v => sgn(v, fmt1)))
+    .call(s => s.select(".domain").remove());
+  const bh = Math.min(20, y.bandwidth());
+  g.selectAll("path.bar").data(d).join("path").attr("fill", r => r.rho > 0 ? css("--ma") : css("--red"))
+    .attr("d", r => barPath(x(0), x(r.rho), y(r.feature) + (y.bandwidth() - bh) / 2, bh, r.rho > 0 ? 1 : -1));
+  g.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", 0).attr("y2", h).attr("stroke", css("--ink2"));
+  g.selectAll("text.n").data(d).join("text").attr("class", "lbl2").attr("x", -10).attr("y", r => y(r.feature) + y.bandwidth() / 2 + 4)
+    .attr("text-anchor", "end").text(r => NAMES[r.feature]);
+  g.selectAll("text.v").data(d).join("text").attr("class", "lbl").attr("x", r => x(r.rho) + (r.rho > 0 ? 6 : -6))
+    .attr("y", r => y(r.feature) + y.bandwidth() / 2 + 4).attr("text-anchor", r => r.rho > 0 ? "start" : "end").text(r => sgn(r.rho, fmt2));
+  table("t-corr", [{ h: "County trait", f: r => NAMES[r.feature] }, { h: "Median ρ", num: 1, f: r => fmt2(r.rho) },
+    { h: "Range across seasons", num: 1, f: r => `${sgn(r.rho_min, fmt2)} to ${sgn(r.rho_max, fmt2)}` },
+    { h: "Seasons positive", num: 1, f: r => `${r.seasons_positive} of ${r.seasons}` }], d);
+  const sat = R.saturation, top = sat[sat.length - 1];
+  document.getElementById("f-who").innerHTML = `<b>Finding</b>Switching follows an adoption curve. It is slowest where MA is rare,
+    fastest around ${S.saturation_peak_band} MA share, and ${fmt1(Math.abs(top.median))} pp below the median county once MA passes
+    ${top.ma_share_from}%. Counties with more low-income, dual-eligible and disabled beneficiaries switch faster; counties with more people aged 85+ switch more slowly.`;
+}
+
+/* ---------- 04 states dumbbell ---------- */
+function states() {
+  const d = R.states.filter(r => r.shift_pp != null && r.shift_prev_pp != null).sort((a, b) => b.shift_pp - a.shift_pp);
+  const el = document.getElementById("c-states"), narrow = el.clientWidth < 520;
+  const m = { t: 6, r: 16, b: 28, l: narrow ? 40 : 150 }, F = frame("c-states", d.length * 19 + 36, m), { g, w, h } = F;
+  const x = d3.scaleLinear().domain([Math.min(-2, d3.min(d, r => r.shift_pp)), Math.max(3.6, d3.max(d, r => r.shift_prev_pp))]).nice().range([0, w]);
+  const y = d3.scaleBand().domain(d.map(r => r.state)).range([0, h]).padding(0.2);
+  g.append("g").attr("class", "gridline").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(6).tickSize(-h).tickFormat(""));
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(6).tickSize(0).tickPadding(8).tickFormat(v => sgn(v, d3.format("d"))))
+    .call(s => s.select(".domain").remove());
+  g.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", 0).attr("y2", h).attr("stroke", css("--ink2"));
+  const cy = r => y(r.state) + y.bandwidth() / 2;
+  const rows = g.selectAll("g.r").data(d).join("g").attr("class", "r");
+  rows.append("line").attr("x1", r => x(r.shift_prev_pp)).attr("x2", r => x(r.shift_pp)).attr("y1", cy).attr("y2", cy).attr("stroke", css("--base")).attr("stroke-width", 2);
+  rows.append("circle").attr("cx", r => x(r.shift_prev_pp)).attr("cy", cy).attr("r", 4).attr("fill", css("--surface")).attr("stroke", css("--muted")).attr("stroke-width", 1.5);
+  rows.append("circle").attr("cx", r => x(r.shift_pp)).attr("cy", cy).attr("r", 4.5).attr("fill", css("--ma")).attr("stroke", css("--surface")).attr("stroke-width", 2);
+  rows.append("text").attr("class", "lbl2").attr("x", -10).attr("y", r => cy(r) + 4).attr("text-anchor", "end").text(r => narrow ? r.state : r.state_name);
+  rows.append("rect").attr("x", -m.l).attr("width", w + m.l).attr("y", r => y(r.state)).attr("height", y.bandwidth()).attr("fill", "transparent")
+    .on("pointermove", (ev, r) => showTip(ev, `<div class="t">${r.state_name}</div>` + row("Dec 2023 → Feb 2024", sgn(r.shift_prev_pp, fmt2) + " pp", css("--muted")) +
+      row("Dec 2024 → Feb 2025", sgn(r.shift_pp, fmt2) + " pp", css("--ma")) + row("Counties (≥1,000)", r.counties)))
+    .on("pointerleave", hideTip);
+  table("t-states", [{ h: "State", f: r => r.state_name }, { h: "2023–24 (pp)", num: 1, f: r => fmt2(r.shift_prev_pp) },
+    { h: "2024–25 (pp)", num: 1, f: r => fmt2(r.shift_pp) }, { h: "Change", num: 1, f: r => sgn(r.change_pp, fmt2) }, { h: "Counties", num: 1, f: r => r.counties }], d);
+  const slowed = d.filter(r => r.change_pp < 0).length, fell = S.states_ma_fell.map(s => s.state_name);
+  const flat = d.filter(r => r.shift_pp >= 0 && r.shift_pp < 0.1).map(r => r.state_name);
+  document.getElementById("p-states").innerHTML = `Median county switching was lower than the season before in <strong>${slowed} of ${d.length}</strong>
+    states and territories. ${fell.length ? `<strong>${fell.join(", ")}</strong> was the only one where the median county's MA share fell (${sgn(S.states_ma_fell[0].shift_pp, fmt2)} pp).` : ""}
+    ${flat.length ? `${flat.join(" and ")} came close to zero.` : ""} The data shows these shifts but not their causes.`;
+}
+
+/* ---------- 05 backtest ---------- */
+const METHODS = [["Blend (county + state)", "--ma"], ["County's last window", "--aqua"], ["State's last window", "--yellow"], ["Gradient boosting", "--om"]];
+function backtest() {
+  const d = R.backtest, years = [...new Set(d.map(r => r.year))];
+  const by = m => years.map(yr => d.find(r => r.year === yr && r.method === m));
+  const avg = m => d3.mean(by(m), r => r.spearman);
+  document.getElementById("l-bt").innerHTML = METHODS.map(([n, c]) => `<span><i style="background:var(${c})"></i>${n} · avg ${fmt2(avg(n))}</span>`).join("");
+  const m = { t: 10, r: 16, b: 28, l: 36 }, F = frame("c-bt", 300, m), { g, w, h } = F;
+  const x = d3.scalePoint().domain(years).range([0, w]).padding(0.3);
+  const y = d3.scaleLinear().domain([0.25, 0.7]).range([h, 0]);
+  yGrid(g, y, w, 5, fmt1);
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).tickSize(0).tickPadding(8).tickFormat(v => `'${String(v).slice(2)}–'${String(v + 1).slice(2)}`));
+  [...METHODS].reverse().forEach(([n, c]) => {
+    const s = by(n), col = css(c);
+    g.append("path").datum(s).attr("fill", "none").attr("stroke", col).attr("stroke-width", n.startsWith("Blend") ? 3 : 2)
+      .attr("stroke-linejoin", "round").attr("d", d3.line().x(r => x(r.year)).y(r => y(r.spearman)));
+    g.selectAll(null).data(s).join("circle").attr("cx", r => x(r.year)).attr("cy", r => y(r.spearman)).attr("r", 4.5)
+      .attr("fill", col).attr("stroke", css("--surface")).attr("stroke-width", 2);
+  });
+  g.selectAll("rect.hit").data(years).join("rect").attr("x", yr => x(yr) - x.step() / 2).attr("width", x.step()).attr("y", 0).attr("height", h).attr("fill", "transparent")
+    .on("pointermove", (ev, yr) => showTip(ev, `<div class="t">Dec ${yr} → Feb ${yr + 1}</div>` +
+      METHODS.map(([n, c]) => row(n, fmt2(d.find(r => r.year === yr && r.method === n).spearman), css(c))).join("")))
+    .on("pointerleave", hideTip);
+  const agg = METHODS.map(([n]) => { const s = by(n); return { n, rho: avg(n), top: d3.mean(s, r => r.top10_hit), bot: d3.mean(s, r => r.bottom10_hit),
+    wins: years.filter(yr => d3.greatest(d.filter(r => r.year === yr), r => r.spearman).method === n).length }; });
+  table("t-bt", [{ h: "Method", f: r => r.n }, { h: "Avg rank accuracy", num: 1, f: r => fmt2(r.rho) },
+    { h: "Top-10% switchers caught", num: 1, f: r => pct0(r.top) }, { h: "Bottom-10% caught", num: 1, f: r => pct0(r.bot) },
+    { h: "Seasons ranked best", num: 1, f: r => `${r.wins} of ${years.length}` }], agg);
+  const b = agg[0], gb = agg.find(r => r.n === "Gradient boosting");
+  document.getElementById("f-bt").innerHTML = `<b>Finding</b>A two-number blend, half the county's own last season and half its state's,
+    beat a gradient-boosting model with ${12} demographic and trend features (average ${fmt2(b.rho)} vs. ${fmt2(gb.rho)}). Switching
+    repeats where it happened last year and moves with the state's insurance market; demographics add little on top.
+    Every method scored lower in the 2023 and 2024 seasons, when the national slowdown began.`;
+}
+
+/* ---------- 06 outlook table ---------- */
+let outlookFilter = "All", outlookLimit = 25;
+function outlook() {
+  const seg = document.getElementById("outlook-filter"), cats = ["All", "Ahead of the median county", "Near the median county", "Behind the median county"];
+  const counts = d3.rollup(R.forecast, v => v.length, r => r.outlook);
+  const short = { "All": "All", "Ahead of the median county": "Ahead", "Near the median county": "Near median", "Behind the median county": "Behind" };
+  seg.innerHTML = cats.map(c => `<button type="button" data-v="${c}" aria-pressed="${c === outlookFilter}">${short[c]} <span style="color:var(--muted)">${comma(c === "All" ? R.forecast.length : counts.get(c) || 0)}</span></button>`).join("");
+  seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { outlookFilter = b.dataset.v; outlookLimit = 25; outlook(); }));
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  let rows = R.forecast.filter(r => (outlookFilter === "All" || r.outlook === outlookFilter) && (!q || `${r.county}, ${r.state}`.toLowerCase().includes(q)));
+  if (outlookFilter === "Behind the median county") rows = rows.slice().reverse();
+  const shown = rows.slice(0, outlookLimit);
+  table("t-outlook", [{ h: "County", f: r => `${r.county}, ${r.state}` }, { h: "Beneficiaries", num: 1, f: r => comma(r.benes) },
+    { h: "MA share, Dec 2025", num: 1, f: r => fmt1(r.ma_share) + "%" }, { h: "Forecast vs. median county", num: 1, f: r => sgn(r.pred, fmt2) + " pp" },
+    { h: "Outlook", f: r => `<span class="pill ${r.outlook.startsWith("Ahead") ? "up" : r.outlook.startsWith("Behind") ? "down" : ""}">${r.outlook}</span>` }], shown);
+  const more = document.getElementById("more");
+  more.style.display = rows.length > outlookLimit ? "" : "none";
+  more.textContent = `Show more (${comma(rows.length - outlookLimit)} left)`;
+}
+document.getElementById("q").addEventListener("input", () => { outlookLimit = 25; outlook(); });
+document.getElementById("more").addEventListener("click", () => { outlookLimit += 50; outlook(); });
+
+/* ---------- 07 original decline model ---------- */
+function decline() {
+  const D = R.decline, d = D.by_size, M = D.metrics;
+  const small = d[0], large = d[d.length - 1];
+  document.getElementById("p-decline").innerHTML = `<p>The project started by predicting which counties' <strong>total</strong> Medicare enrollment
+    would drop more than 0.5% from December to February. A Random Forest scores ROC-AUC <strong>${fmt2(M.roc_auc)}</strong> on the held-out
+    Dec 2024 → Feb 2025 season (PR-AUC ${fmt2(M.pr_auc)} against a ${pct0(M.positive_rate)} base rate).</p>
+    <p>Most of that signal is county size. The smallest fifth of counties (median ${comma(Math.round(small.median_benes))} beneficiaries) are labelled
+    "churn" in ${pct0(small.churn_rate)} of seasons, against ${pct0(large.churn_rate)} for the largest. In a county of 1,000, a 0.5% drop is five
+    people, so the label mostly measures noise. That is why this report focuses on switching, which measures how people choose their
+    coverage rather than how many people are enrolled.</p>`;
+  const el = document.getElementById("c-decline"), narrow = el.clientWidth < 420;
+  const m = { t: 4, r: 48, b: 24, l: narrow ? 100 : 120 }, F = frame("c-decline", 200, m), { g, w, h } = F;
+  const x = d3.scaleLinear().domain([0, 0.45]).range([0, w]);
+  const y = d3.scaleBand().domain(d.map(r => r.group)).range([0, h]).padding(0.35);
+  g.append("g").attr("class", "gridline").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickSize(-h).tickFormat(""));
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickSize(0).tickPadding(8).tickFormat(pct0)).call(s => s.select(".domain").remove());
+  const bh = Math.min(20, y.bandwidth());
+  g.selectAll("path.bar").data(d).join("path").attr("fill", css("--om")).attr("d", r => barPath(0, x(r.churn_rate), y(r.group) + (y.bandwidth() - bh) / 2, bh, 1));
+  g.selectAll("text.n").data(d).join("text").attr("class", "lbl2").attr("x", -10).attr("y", r => y(r.group) + y.bandwidth() / 2 + 4).attr("text-anchor", "end").text(r => r.group);
+  g.selectAll("text.v").data(d).join("text").attr("class", "lbl").attr("x", r => x(r.churn_rate) + 6).attr("y", r => y(r.group) + y.bandwidth() / 2 + 4).text(r => pct0(r.churn_rate));
+  g.selectAll("rect.hit").data(d).join("rect").attr("x", 0).attr("width", w).attr("y", r => y(r.group)).attr("height", y.bandwidth()).attr("fill", "transparent")
+    .on("pointermove", (ev, r) => showTip(ev, `<div class="t">${r.group} of counties</div>` + row("Seasons labelled churn", pct0(r.churn_rate), css("--om")) + row("Median beneficiaries", comma(Math.round(r.median_benes)))))
+    .on("pointerleave", hideTip);
+  table("t-decline", [{ h: "County size", f: r => r.group }, { h: "Median beneficiaries", num: 1, f: r => comma(Math.round(r.median_benes)) },
+    { h: "Seasons labelled churn", num: 1, f: r => pct0(r.churn_rate) }], d);
+}
+
+/* ---------- boot ---------- */
+R.forecastByFips = Object.fromEntries(R.forecast.map(r => [r.fips, r]));
+mapMode = R.map.years[R.map.years.length - 1];
+function renderAll() { enroll(); wave(); drawMap(); saturation(); correlates(); states(); backtest(); decline(); }
+hero(); mapButtons(); outlook(); renderAll();
+fetch(MAP_TOPO).then(r => r.json()).then(t => { topo = t; drawMap(); })
+  .catch(() => { document.getElementById("c-map").innerHTML = '<div class="loading">The county map could not be loaded.</div>'; });
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(renderAll, 150); });
+</script>
+</body>
+</html>

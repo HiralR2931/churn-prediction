@@ -94,3 +94,36 @@ RF_PARAMS = dict(
     random_state=42,
 )
 RANDOM_STATE = 42
+
+# --------------------------------------------------------------------------- #
+# Medicare Advantage switching (the main analysis)
+# --------------------------------------------------------------------------- #
+# Plan choices made in the Oct-Dec enrollment period take effect on January 1,
+# so the Dec -> Feb window is where Original Medicare -> MA switching shows up.
+# The outcome is the change in a county's MA share across that window, in
+# percentage points.
+SITE_DIR = PROJECT_ROOT / "site"
+DOCS_DIR = PROJECT_ROOT / "docs"
+
+# Counties below this size swing by several points on a handful of people, so
+# they are left out of the model and the county statistics (kept on the map).
+MA_MIN_BENES = 1000
+MA_FIRST_YEAR = 2015            # needs two prior windows for the lag features
+MA_BACKTEST_YEARS = [2019, 2020, 2021, 2022, 2023, 2024]
+MA_FORECAST_YEAR = 2025         # Dec 2025 -> Feb 2026
+# Weight on the county's own last window vs its state's last window.
+MA_BLEND_WEIGHT = 0.5
+MA_DEMOGRAPHICS = [
+    "dual_ratio", "lis_ratio", "disabled_ratio", "age_85_plus_ratio",
+    "black_ratio", "hispanic_ratio", "log_tot_benes",
+]
+MA_GBM_FEATURES = MA_DEMOGRAPHICS + [
+    "ma_ratio", "prev_rel_shift", "prev2_rel_shift", "ma_trend_12m", "state_prev_rel_shift",
+]
+GBM_PARAMS = dict(
+    max_iter=400,
+    learning_rate=0.05,
+    min_samples_leaf=40,
+    l2_regularization=1.0,
+    random_state=RANDOM_STATE,
+)

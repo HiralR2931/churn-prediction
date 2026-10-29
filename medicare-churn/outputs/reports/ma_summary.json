@@ -1,0 +1,47 @@
+{
+  "first_year": 2013,
+  "last_year": 2025,
+  "ma_share_first": 28.4,
+  "ma_share_last": 51.0,
+  "ma_majority_year": 2024,
+  "ma_millions_last": 35.6,
+  "om_millions_last": 34.3,
+  "latest_window": "Dec 2024 -> Feb 2025",
+  "peak_window_year": 2020,
+  "peak_county_median_shift_pp": 3.1,
+  "latest_county_median_shift_pp": 0.91,
+  "latest_national_shift_pp": 0.74,
+  "share_counties_slowed": 0.871,
+  "counties_compared": 2963,
+  "share_counties_ma_fell": 0.094,
+  "counties_modelled": 2968,
+  "saturation_peak_band": "20-30%",
+  "saturation_peak_rel_pp": 0.21,
+  "saturation_top_band_rel_pp": -1.33,
+  "states_ma_fell": [
+    {
+      "state": "VT",
+      "state_name": "Vermont",
+      "shift_pp": -1.81
+    }
+  ],
+  "backtest_mean_spearman": {
+    "Blend (county + state)": 0.529,
+    "County's last window": 0.518,
+    "Gradient boosting": 0.467,
+    "State's last window": 0.427
+  },
+  "backtest_latest_spearman": {
+    "County's last window": 0.371,
+    "State's last window": 0.399,
+    "Blend (county + state)": 0.416,
+    "Gradient boosting": 0.326
+  },
+  "best_method": "Blend (county + state)",
+  "forecast_counties": 2971,
+  "forecast_outlook_counts": {
+    "Near the median county": 2155,
+    "Behind the median county": 446,
+    "Ahead of the median county": 370
+  }
+}

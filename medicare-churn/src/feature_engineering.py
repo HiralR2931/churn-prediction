@@ -63,8 +63,20 @@ def add_trend_features(df: pd.DataFrame) -> pd.DataFrame:
     g = df.groupby("fips", sort=False)["TOT_BENES"]
     df["momentum_3m"] = g.pct_change(periods=3).fillna(0.0)
     df["yoy_change"] = g.pct_change(periods=12).fillna(0.0)
-    df["prior_window_change"] = g.pct_change(periods=12).fillna(0.0)
-    return df
+
+    # Dec (Y-1) -> Feb (Y) change, keyed to the calendar year it ends in. A row
+    # sees the latest window that has finished: Feb Y onwards sees year Y's,
+    # January still sees the year before.
+    dec = df.loc[df["month_num"] == 12, ["fips", "year", "TOT_BENES"]]
+    feb = df.loc[df["month_num"] == 2, ["fips", "year", "TOT_BENES"]]
+    win = feb.merge(dec.assign(year=dec["year"] + 1), on=["fips", "year"],
+                    suffixes=("_feb", "_dec"))
+    win["window_change"] = win["TOT_BENES_feb"] / win["TOT_BENES_dec"] - 1
+    df["_window_year"] = df["year"] - (df["month_num"] < 2).astype(int)
+    df = df.merge(win[["fips", "year", "window_change"]].rename(columns={"year": "_window_year"}),
+                  on=["fips", "_window_year"], how="left")
+    df["prior_window_change"] = df.pop("window_change").fillna(0.0)
+    return df.drop(columns="_window_year")
 
 
 def engineer(df: pd.DataFrame) -> pd.DataFrame:

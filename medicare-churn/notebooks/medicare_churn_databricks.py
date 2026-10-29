@@ -89,15 +89,24 @@ df = (df
 w = Window.partitionBy("BENE_FIPS_CD").orderBy("date")
 df = (df
     .withColumn("tot_lag3", F.lag("TOT_BENES", 3).over(w))
-    .withColumn("tot_lag12", F.lag("TOT_BENES", 12).over(w))
     .withColumn("momentum_3m",
                 F.when(F.col("tot_lag3") > 0,
                        (F.col("TOT_BENES") - F.col("tot_lag3")) / F.col("tot_lag3"))
-                 .otherwise(0.0))
-    .withColumn("prior_window_change",
-                F.when(F.col("tot_lag12") > 0,
-                       (F.col("TOT_BENES") - F.col("tot_lag12")) / F.col("tot_lag12"))
                  .otherwise(0.0)))
+
+# Last finished Dec -> Feb window: Dec (Y-1) -> Feb (Y), seen from Feb Y onwards.
+_dec = df.filter(F.col("month_num") == 12).select(
+    "BENE_FIPS_CD", (F.col("YEAR") + 1).alias("_window_year"), F.col("TOT_BENES").alias("_dec"))
+_win = (df.filter(F.col("month_num") == 2)
+    .select("BENE_FIPS_CD", F.col("YEAR").alias("_window_year"), F.col("TOT_BENES").alias("_feb"))
+    .join(_dec, ["BENE_FIPS_CD", "_window_year"])
+    .withColumn("prior_window_change",
+                F.when(F.col("_dec") > 0, F.col("_feb") / F.col("_dec") - 1).otherwise(0.0))
+    .select("BENE_FIPS_CD", "_window_year", "prior_window_change"))
+df = (df.withColumn("_window_year", F.col("YEAR") - F.when(F.col("month_num") < 2, 1).otherwise(0))
+        .join(_win, ["BENE_FIPS_CD", "_window_year"], "left")
+        .fillna({"prior_window_change": 0.0})
+        .drop("_window_year"))
 
 # COMMAND ----------
 

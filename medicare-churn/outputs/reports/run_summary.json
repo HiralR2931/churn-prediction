@@ -3,22 +3,30 @@
     "raw_rows": 563758,
     "county_monthly_rows": 511188,
     "suppressed_cells_imputed": 3195184,
+    "rows_with_suppression": 397085,
     "rows_dropped_invalid": 67,
-    "rows_flagged_inconsistent": 8357,
-    "clean_rows": 511121,
-    "counties": 3289,
+    "rows_dropped_unknown_county": 8268,
+    "rows_flagged_inconsistent": 89,
+    "clean_rows": 502853,
+    "counties": 3236,
     "date_min": "2013-01-01",
     "date_max": "2025-12-01"
   },
   "model_metrics": {
-    "n_test": 3278,
-    "positive_rate": 0.1583282489322758,
-    "roc_auc": 0.846462898442023,
-    "pr_auc": 0.4646090786756321,
-    "brier": 0.16716245406833805
+    "n_test": 3225,
+    "positive_rate": 0.16093023255813954,
+    "roc_auc": 0.8473776251162406,
+    "pr_auc": 0.501220731554095,
+    "brier": 0.1646076309485333
   },
   "forecast_window": "Dec 2025 -> Feb 2026",
-  "counties_scored": 3278,
-  "counties_predicted_churn": 1221,
-  "runtime_seconds": 17.9
+  "counties_scored": 3225,
+  "counties_predicted_churn": 1040,
+  "ma_switching": {
+    "ma_share_last": 51.0,
+    "latest_county_median_shift_pp": 0.91,
+    "share_counties_slowed": 0.871,
+    "best_method": "Blend (county + state)"
+  },
+  "runtime_seconds": 28.9
 }

@@ -48,16 +48,19 @@ def clean(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     # --- 2. Resolve suppressed cells --------------------------------------- #
     num_cols = _numeric_columns(df)
     suppressed_cells = 0
+    row_suppressed = pd.Series(False, index=df.index)
     for col in num_cols:
         s = df[col].astype("string").str.strip()
-        mask = s == C.SUPPRESSION_TOKEN
+        mask = (s == C.SUPPRESSION_TOKEN).fillna(False)
         suppressed_cells += int(mask.sum())
+        row_suppressed |= mask
         s = s.mask(mask, str(C.SUPPRESSION_MIDPOINT))
         df[col] = pd.to_numeric(s, errors="coerce")
     report["suppressed_cells_imputed"] = suppressed_cells
 
     # Flag rows that carried at least one suppressed count (kept for auditing).
-    df["had_suppression"] = df[num_cols].isna().any(axis=1) | (suppressed_cells > 0)
+    df["had_suppression"] = row_suppressed
+    report["rows_with_suppression"] = int(row_suppressed.sum())
 
     # --- 3. Drop structurally broken rows ---------------------------------- #
     before = len(df)
@@ -66,6 +69,12 @@ def clean(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     # A valid county FIPS is 5 digits.
     df = df[df["BENE_FIPS_CD"].str.fullmatch(r"\d{5}").fillna(False)]
     report["rows_dropped_invalid"] = before - len(df)
+
+    # Each state also has an "Unknown" bucket (FIPS ending 999) for people
+    # without a county; it is not a place, so it is left out of county analysis.
+    unknown = df["BENE_FIPS_CD"].str.endswith("999")
+    report["rows_dropped_unknown_county"] = int(unknown.sum())
+    df = df[~unknown]
 
     # --- 4. Consistency check: components should not exceed the total ------- #
     # (data-integrity guard rather than a hard filter; small overshoots from
@@ -101,6 +110,23 @@ def clean(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
 def load_clean(path=C.RAW_CSV) -> tuple[pd.DataFrame, dict]:
     """Convenience: load raw then clean in one call."""
     return clean(load_raw(path))
+
+
+def load_national(path=C.RAW_CSV) -> pd.DataFrame:
+    """CMS's own national monthly totals.
+
+    County rows leave out roughly half a million people with no county on
+    file (mostly in Original Medicare), so national figures come from the
+    ``National`` rows rather than a sum of counties.
+    """
+    cols = ["YEAR", "MONTH", "BENE_GEO_LVL", "TOT_BENES", "ORGNL_MDCR_BENES", "MA_AND_OTH_BENES"]
+    df = pd.read_csv(path, usecols=cols, dtype={"MONTH": "string", "BENE_GEO_LVL": "string"})
+    df = df[(df["BENE_GEO_LVL"] == "National") & df["MONTH"].isin(list(C.MONTH_ORDER))].copy()
+    df["month_num"] = df["MONTH"].map(C.MONTH_ORDER).astype(int)
+    for col in cols[3:]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    return (df.rename(columns={"YEAR": "year"})
+            [["year", "month_num"] + cols[3:]].reset_index(drop=True))
 
 
 if __name__ == "__main__":
