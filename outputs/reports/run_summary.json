@@ -1,0 +1,24 @@
+{
+  "data_quality": {
+    "raw_rows": 563758,
+    "county_monthly_rows": 511188,
+    "suppressed_cells_imputed": 3195184,
+    "rows_dropped_invalid": 67,
+    "rows_flagged_inconsistent": 8357,
+    "clean_rows": 511121,
+    "counties": 3289,
+    "date_min": "2013-01-01",
+    "date_max": "2025-12-01"
+  },
+  "model_metrics": {
+    "n_test": 3278,
+    "positive_rate": 0.1583282489322758,
+    "roc_auc": 0.846462898442023,
+    "pr_auc": 0.4646090786756321,
+    "brier": 0.16716245406833805
+  },
+  "forecast_window": "Dec 2025 -> Feb 2026",
+  "counties_scored": 3278,
+  "counties_predicted_churn": 1221,
+  "runtime_seconds": 17.9
+}
