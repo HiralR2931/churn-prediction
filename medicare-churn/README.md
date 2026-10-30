@@ -102,6 +102,13 @@ python run_pipeline.py
 python -m http.server --directory site 8000   # then open http://localhost:8000
 ```
 
+Tests run on small made-up samples, so they don't need the dataset:
+
+```bash
+pip install pytest
+pytest -q
+```
+
 The full run takes about 30 seconds on a laptop. Single stages run on their own too, e.g.
 `python -m src.ma_switching` or `python -m src.charts`.
 

@@ -109,6 +109,13 @@ pip install -r requirements.txt
 python run_pipeline.py
 ```
 
+Tests run on small made-up samples, so they don't need the dataset:
+
+```bash
+pip install pytest
+pytest -q
+```
+
 The full run takes about 20 seconds on a laptop: checks, analysis, benchmark, charts and `site/data.js`.
 
 ## Project layout

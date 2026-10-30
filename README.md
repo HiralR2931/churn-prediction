@@ -1,5 +1,7 @@
 # Churn Prediction
 
+[![Tests](https://github.com/HiralR2931/churn-prediction/actions/workflows/tests.yml/badge.svg)](https://github.com/HiralR2931/churn-prediction/actions/workflows/tests.yml)
+
 Two churn projects with the same question at different scales: who is about to
 leave? One follows people leaving Original Medicare for private Medicare
 Advantage plans across every U.S. county. The other predicts churn for
@@ -55,8 +57,14 @@ python run_pipeline.py
 
 Neither dataset is stored in this repo.
 
+Each project has a `tests/` folder that runs on small made-up samples, with no download needed. GitHub Actions runs both suites on every push (`.github/workflows/tests.yml`).
+
 ## Stack
 
 Python · pandas · NumPy · scikit-learn · SciPy · D3 · Plotly · Matplotlib/Seaborn · PySpark · Databricks · Jupyter
+
+## License
+
+[MIT](LICENSE)
 
 **Author:** Hiral Rana · [GitHub](https://github.com/HiralR2931) · [LinkedIn](https://linkedin.com/in/ranahiral)
