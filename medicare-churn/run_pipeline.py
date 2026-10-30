@@ -31,6 +31,7 @@ from src.model import (
 )
 from src.stats_analysis import run_all as run_stats
 from src.web_report import build_site
+from src.scoring import run_all as run_scoring
 
 
 def _hr(title: str) -> None:
@@ -61,6 +62,15 @@ def main() -> None:
     print("  walk-forward backtest (mean Spearman):")
     for method, rho in s["backtest_mean_spearman"].items():
         print(f"    {method:24s} {rho:.3f}")
+
+    scored = run_scoring(ma)
+    if scored:
+        sc = scored["summary"]
+        print(f"  scored {sc['season']} on the {sc['cms_release']} release: blend Spearman "
+              f"{sc['blend_spearman']} (backtest {sc['backtest_latest_blend_spearman']}), "
+              f"MA share fell in {sc['share_counties_ma_fell']:.0%} of counties")
+    else:
+        print("  outcome data not fetched; run `python -m src.fetch_scoring_data` to score the outlook")
 
     _hr("4. NET-DECLINE LABELLING & SPLIT")
     tbl = build_modeling_table(feat_df)
@@ -107,7 +117,7 @@ def main() -> None:
         print(f"  wrote {p.relative_to(C.PROJECT_ROOT)}")
 
     _hr("9. README CHARTS & INTERACTIVE REPORT")
-    for p in build_charts(ma) + build_site(ma, labelled, metrics):
+    for p in build_charts(ma, scored) + build_site(ma, labelled, metrics, scored):
         print(f"  wrote {p.relative_to(C.PROJECT_ROOT)}")
 
     # Run summary

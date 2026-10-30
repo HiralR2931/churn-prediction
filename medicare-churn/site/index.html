@@ -161,7 +161,7 @@
   <span class="brand">The Medicare Advantage Stall</span>
   <div class="links">
     <a href="#stall">The stall</a><a href="#map">Map</a><a href="#who">Who switches</a>
-    <a href="#states">States</a><a href="#forecast">Forecasting</a><a href="#outlook">2026 outlook</a>
+    <a href="#states">States</a><a href="#forecast">Forecasting</a><a href="#outlook">2026 scored</a>
     <a href="#decline">Original model</a><a href="#method">Method</a><a href="netflix/">Netflix report</a>
   </div>
   <button class="theme" id="theme" type="button" aria-label="Toggle color theme">Theme</button>
@@ -198,7 +198,8 @@
   <div class="ch-head"><div class="ch-num">02</div><div>
     <h2>Where people switched</h2>
     <div class="prose"><p>Pick a season to see each county's change in MA share. Choose
-    <strong>2026 outlook</strong> to see the forecast for Dec 2025 → Feb 2026, shown relative to the median county.</p></div>
+    <strong>2026 forecast</strong> to see the forecast for Dec 2025 → Feb 2026, shown relative to the median county, and
+    <strong>'25–'26 actual</strong> to see what happened.</p></div>
   </div></div>
   <div class="card">
     <div class="controls"><div class="seg" id="map-years" role="group" aria-label="Season"></div></div>
@@ -250,11 +251,12 @@
 
 <section class="ch" id="outlook">
   <div class="ch-head"><div class="ch-num">06</div><div>
-    <h2>2026 outlook: Dec 2025 → Feb 2026</h2>
-    <div class="prose"><p>Each county is scored with the blend, which was the most reliable method in the backtest. Values are
-    relative to the median county, whatever its pace turns out to be. A county at +1.0 pp is expected to switch one point faster
-    than the median county. CMS has not yet published February 2026, so these forecasts are unscored.</p></div>
+    <h2 id="h-outlook">The 2026 forecast: Dec 2025 → Feb 2026</h2>
+    <div class="prose" id="p-outlook"></div>
   </div></div>
+  <div class="card" id="card-scored" hidden><h3>How each outlook group actually did</h3><p class="sub">Forecast made with data to Dec 2025; outcome from CMS's later release</p>
+    <div class="tw" id="t-scored"></div></div>
+  <p class="finding" id="f-scored" hidden></p>
   <div class="card">
     <div class="controls">
       <input class="search" id="q" type="search" placeholder="Search county or state" aria-label="Search counties">
@@ -288,6 +290,9 @@
       each season, not the national total.</p>
       <p><strong>Small counties.</strong> Counties with fewer than 1,000 beneficiaries move several points on a handful
       of people. They are greyed out on the map and left out of the statistics and models.</p>
+      <p><strong>Scoring on new data.</strong> The Dec 2025 → Feb 2026 forecast was fixed before February 2026 was available. Both
+      months used to score it come from one later CMS release (fetched with <code>src/fetch_scoring_data.py</code>), since CMS
+      revises earlier months. The excluded-states check was chosen after seeing the outcome and is reported only as context.</p>
       <p><strong>Forecasting.</strong> Rankings are scored on seasons each method never saw. The blend weights the county's own
       last season and its state's median last season equally. Correlations describe associations, not causes.</p>
       <p><strong>Connecticut.</strong> Connecticut replaced its 8 counties with 9 planning regions in 2022. Its Dec 2021 → Feb 2022
@@ -376,12 +381,18 @@ function hero() {
     `In December ${S.first_year}, ${fmt1(S.ma_share_first)}% of people on Medicare were in a private Medicare Advantage plan. ` +
     `By December ${S.last_year} it was ${fmt1(S.ma_share_last)}%, and MA had passed Original Medicare. But the yearly wave of ` +
     `people switching over peaked in ${S.peak_window_year} and has since fallen by more than two thirds.`;
-  const best = S.backtest_mean_spearman[S.best_method];
+  const best = S.backtest_mean_spearman[S.best_method], SC = R.scored && R.scored.summary;
+  if (SC) document.getElementById("lede").textContent =
+    `In December ${S.first_year}, ${fmt1(S.ma_share_first)}% of people on Medicare were in a private Medicare Advantage plan. ` +
+    `By February ${S.last_year + 1} it was ${fmt1(SC.ma_share_feb)}%, and MA had passed Original Medicare. But the yearly wave of ` +
+    `people switching over peaked in ${S.peak_window_year}, and in the latest season the MA share fell in ${pct0(SC.share_counties_ma_fell)} of counties.`;
   document.getElementById("tiles").innerHTML = [
-    ["hero-tile", "MA share of beneficiaries", `${fmt1(S.ma_share_last)}%`, `Dec ${S.last_year}, up from ${fmt1(S.ma_share_first)}% in ${S.first_year}`],
+    SC ? ["hero-tile", "MA share of beneficiaries", `${fmt1(SC.ma_share_feb)}%`, `Feb ${S.last_year + 1} (CMS ${SC.cms_release} release), up from ${fmt1(S.ma_share_first)}% in Dec ${S.first_year}`]
+       : ["hero-tile", "MA share of beneficiaries", `${fmt1(S.ma_share_last)}%`, `Dec ${S.last_year}, up from ${fmt1(S.ma_share_first)}% in ${S.first_year}`],
     ["", "Switching season, median county", `+${fmt1(S.latest_county_median_shift_pp)} pp`, `Dec ${S.last_year - 1} → Feb ${S.last_year}; peak +${fmt1(S.peak_county_median_shift_pp)} pp in ${S.peak_window_year}`],
     ["", "Counties that slowed", pct0(S.share_counties_slowed), `vs. the season before, of ${comma(S.counties_compared)} counties`],
-    ["", "Best forecast rank accuracy", fmt2(best), `${S.best_method}, walk-forward avg.`],
+    SC ? ["", "Forecast, scored on new data", fmt2(SC.blend_spearman), `rank accuracy for Dec ${S.last_year} → Feb ${S.last_year + 1}; backtest avg. ${fmt2(best)}`]
+       : ["", "Best forecast rank accuracy", fmt2(best), `${S.best_method}, walk-forward avg.`],
   ].map(([c, l, v, n]) => `<div class="tile ${c}"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join("");
 }
 
@@ -461,7 +472,8 @@ function mapValue(fips) {
   return v === "s" ? null : v;
 }
 function mapButtons() {
-  const opts = R.map.years.map(y => [y, `'${String(y).slice(2)}–'${String(y + 1).slice(2)}`]).concat([["outlook", "2026 outlook"]]);
+  const opts = R.map.years.map(y => [y, `'${String(y).slice(2)}–'${String(y + 1).slice(2)}${y === R.map.scored_year ? " actual" : ""}`])
+    .concat([["outlook", "2026 forecast"]]);
   const seg = document.getElementById("map-years");
   seg.innerHTML = opts.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${String(v) === String(mapMode)}">${l}</button>`).join("");
   seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
@@ -483,7 +495,8 @@ function drawMap() {
       let html = `<div class="t">${name}</div>`;
       if (v == null) html += row(small ? "Under 1,000 beneficiaries" : "No data", "");
       else if (mapMode === "outlook") html += row("Forecast vs. median county", sgn(v, fmt2) + " pp") + row("Outlook", fc.outlook);
-      else html += row(`Dec ${mapMode} → Feb ${mapMode + 1}`, sgn(v, fmt2) + " pp");
+      else html += row(`Dec ${mapMode} → Feb ${mapMode + 1}`, sgn(v, fmt2) + " pp") +
+        (mapMode === R.map.scored_year ? row("Source", `CMS ${R.scored.summary.cms_release} release`) : "");
       if (fc) html += row("Beneficiaries (Dec 2025)", comma(fc.benes));
       showTip(ev, html);
       d3.select(ev.currentTarget).attr("stroke", css("--ink")).attr("stroke-width", 1.2).raise();
@@ -586,7 +599,8 @@ function states() {
   const flat = d.filter(r => r.shift_pp >= 0 && r.shift_pp < 0.1).map(r => r.state_name);
   document.getElementById("p-states").innerHTML = `Median county switching was lower than the season before in <strong>${slowed} of ${d.length}</strong>
     states and territories. ${fell.length ? `<strong>${fell.join(", ")}</strong> was the only one where the median county's MA share fell (${sgn(S.states_ma_fell[0].shift_pp, fmt2)} pp).` : ""}
-    ${flat.length ? `${flat.join(" and ")} came close to zero.` : ""} The data shows these shifts but not their causes.`;
+    ${flat.length ? `${flat.join(" and ")} came close to zero.` : ""} The data shows these shifts but not their causes.`
+    + (R.scored ? ` <a href="#outlook">In the next season</a> the reversal spread to ${R.scored.summary.reversed_states.length} states.` : "");
 }
 
 /* ---------- 05 backtest ---------- */
@@ -596,32 +610,48 @@ function backtest() {
   const by = m => years.map(yr => d.find(r => r.year === yr && r.method === m));
   const avg = m => d3.mean(by(m), r => r.spearman);
   document.getElementById("l-bt").innerHTML = METHODS.map(([n, c]) => `<span><i style="background:var(${c})"></i>${n} · avg ${fmt2(avg(n))}</span>`).join("");
+  const SCM = R.scored ? Object.fromEntries(R.scored.methods.map(r => [r.method, r])) : null;
+  const sy = R.scored ? years[years.length - 1] + 1 : null, allYears = sy ? [...years, sy] : years;
   const m = { t: 10, r: 16, b: 28, l: 36 }, F = frame("c-bt", 300, m), { g, w, h } = F;
-  const x = d3.scalePoint().domain(years).range([0, w]).padding(0.3);
-  const y = d3.scaleLinear().domain([0.25, 0.7]).range([h, 0]);
+  const x = d3.scalePoint().domain(allYears).range([0, w]).padding(0.3);
+  const y = d3.scaleLinear().domain([sy ? 0.1 : 0.25, 0.7]).range([h, 0]);
+  if (sy) {
+    g.append("rect").attr("x", x(sy) - x.step() / 2).attr("width", x.step()).attr("y", 0).attr("height", h).attr("fill", css("--chip"));
+    g.append("text").attr("class", "lbl2").attr("x", x(sy)).attr("y", 14).attr("text-anchor", "middle").text("scored");
+  }
   yGrid(g, y, w, 5, fmt1);
   g.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).tickSize(0).tickPadding(8).tickFormat(v => `'${String(v).slice(2)}–'${String(v + 1).slice(2)}`));
   [...METHODS].reverse().forEach(([n, c]) => {
     const s = by(n), col = css(c);
+    if (sy) {
+      const last = s[s.length - 1], v = SCM[n].spearman;
+      g.append("line").attr("x1", x(last.year)).attr("y1", y(last.spearman)).attr("x2", x(sy)).attr("y2", y(v))
+        .attr("stroke", col).attr("stroke-width", n.startsWith("Blend") ? 3 : 2).attr("stroke-dasharray", "3 3");
+      g.append("circle").attr("cx", x(sy)).attr("cy", y(v)).attr("r", 4.5).attr("fill", col).attr("stroke", css("--surface")).attr("stroke-width", 2);
+    }
     g.append("path").datum(s).attr("fill", "none").attr("stroke", col).attr("stroke-width", n.startsWith("Blend") ? 3 : 2)
       .attr("stroke-linejoin", "round").attr("d", d3.line().x(r => x(r.year)).y(r => y(r.spearman)));
     g.selectAll(null).data(s).join("circle").attr("cx", r => x(r.year)).attr("cy", r => y(r.spearman)).attr("r", 4.5)
       .attr("fill", col).attr("stroke", css("--surface")).attr("stroke-width", 2);
   });
-  g.selectAll("rect.hit").data(years).join("rect").attr("x", yr => x(yr) - x.step() / 2).attr("width", x.step()).attr("y", 0).attr("height", h).attr("fill", "transparent")
-    .on("pointermove", (ev, yr) => showTip(ev, `<div class="t">Dec ${yr} → Feb ${yr + 1}</div>` +
-      METHODS.map(([n, c]) => row(n, fmt2(d.find(r => r.year === yr && r.method === n).spearman), css(c))).join("")))
+  const val = (yr, n) => yr === sy ? SCM[n].spearman : d.find(r => r.year === yr && r.method === n).spearman;
+  g.selectAll("rect.hit").data(allYears).join("rect").attr("class", "hit").attr("x", yr => x(yr) - x.step() / 2).attr("width", x.step()).attr("y", 0).attr("height", h).attr("fill", "transparent")
+    .on("pointermove", (ev, yr) => showTip(ev, `<div class="t">Dec ${yr} → Feb ${yr + 1}${yr === sy ? " (scored on new data)" : ""}</div>` +
+      METHODS.map(([n, c]) => row(n, fmt2(val(yr, n)), css(c))).join("")))
     .on("pointerleave", hideTip);
   const agg = METHODS.map(([n]) => { const s = by(n); return { n, rho: avg(n), top: d3.mean(s, r => r.top10_hit), bot: d3.mean(s, r => r.bottom10_hit),
     wins: years.filter(yr => d3.greatest(d.filter(r => r.year === yr), r => r.spearman).method === n).length }; });
   table("t-bt", [{ h: "Method", f: r => r.n }, { h: "Avg rank accuracy", num: 1, f: r => fmt2(r.rho) },
     { h: "Top-10% switchers caught", num: 1, f: r => pct0(r.top) }, { h: "Bottom-10% caught", num: 1, f: r => pct0(r.bot) },
-    { h: "Seasons ranked best", num: 1, f: r => `${r.wins} of ${years.length}` }], agg);
+    { h: "Seasons ranked best", num: 1, f: r => `${r.wins} of ${years.length}` }]
+    .concat(SCM ? [{ h: `Scored '${String(sy).slice(2)}–'${String(sy + 1).slice(2)}`, num: 1, f: r => fmt2(SCM[r.n].spearman) }] : []), agg);
   const b = agg[0], gb = agg.find(r => r.n === "Gradient boosting");
   document.getElementById("f-bt").innerHTML = `<b>Finding</b>A two-number blend, half the county's own last season and half its state's,
     beat a gradient-boosting model with ${12} demographic and trend features (average ${fmt2(b.rho)} vs. ${fmt2(gb.rho)}). Switching
     repeats where it happened last year and moves with the state's insurance market; demographics add little on top.
-    Every method scored lower in the 2023 and 2024 seasons, when the national slowdown began.`;
+    Every method scored lower in the 2023 and 2024 seasons, when the national slowdown began.` +
+    (SCM ? ` On the season scored with new data, all four fell further (${fmt2(d3.min(Object.values(SCM), r => r.spearman))}–${fmt2(d3.max(Object.values(SCM), r => r.spearman))}),
+    and gradient boosting edged ahead: <a href="#outlook">see the scored forecast</a>.` : "");
 }
 
 /* ---------- 06 outlook table ---------- */
@@ -637,14 +667,46 @@ function outlook() {
   if (outlookFilter === "Behind the median county") rows = rows.slice().reverse();
   const shown = rows.slice(0, outlookLimit);
   table("t-outlook", [{ h: "County", f: r => `${r.county}, ${r.state}` }, { h: "Beneficiaries", num: 1, f: r => comma(r.benes) },
-    { h: "MA share, Dec 2025", num: 1, f: r => fmt1(r.ma_share) + "%" }, { h: "Forecast vs. median county", num: 1, f: r => sgn(r.pred, fmt2) + " pp" },
-    { h: "Outlook", f: r => `<span class="pill ${r.outlook.startsWith("Ahead") ? "up" : r.outlook.startsWith("Behind") ? "down" : ""}">${r.outlook}</span>` }], shown);
+    { h: "MA share, Dec 2025", num: 1, f: r => fmt1(r.ma_share) + "%" }, { h: "Forecast vs. median county", num: 1, f: r => sgn(r.pred, fmt2) + " pp" }]
+    .concat(R.scored ? [{ h: "Actual vs. median county", num: 1, f: r => r.actual == null ? "—" : sgn(r.actual, fmt2) + " pp" }] : []).concat([
+    { h: "Outlook", f: r => `<span class="pill ${r.outlook.startsWith("Ahead") ? "up" : r.outlook.startsWith("Behind") ? "down" : ""}">${r.outlook}</span>` }]), shown);
   const more = document.getElementById("more");
   more.style.display = rows.length > outlookLimit ? "" : "none";
   more.textContent = `Show more (${comma(rows.length - outlookLimit)} left)`;
 }
 document.getElementById("q").addEventListener("input", () => { outlookLimit = 25; outlook(); });
 document.getElementById("more").addEventListener("click", () => { outlookLimit += 50; outlook(); });
+
+/* ---------- 06 scored forecast ---------- */
+function scored() {
+  const P = document.getElementById("p-outlook");
+  if (!R.scored) {
+    P.innerHTML = `<p>Each county is scored with the blend, the most reliable method in the backtest. Values are relative to the
+      median county. CMS has not yet published February 2026, so these forecasts are unscored.</p>`;
+    return;
+  }
+  const X = R.scored.summary, rev = X.reversed_states, M = Object.fromEntries(R.scored.methods.map(r => [r.method, r]));
+  document.getElementById("h-outlook").textContent = "The 2026 forecast, scored on real data";
+  P.innerHTML = `<p>The outlook below was made from data ending December 2025: each county ranked by the blend, relative to the median
+    county. CMS's ${X.cms_release} release then published February 2026, and the forecast is scored against it. December 2025 is taken
+    from the same release, because CMS revised it: totals moved up ${fmt1(X.revisions.median_total_revision_pct)}% and MA share
+    ${sgn(X.revisions.median_ma_share_revision_pp, fmt2)} pp in the median county, putting the national MA share at ${fmt1(X.ma_share_dec_revised)}%.</p>
+    <p>The stall deepened. The median county's MA share rose just <strong>+${fmt2(X.county_median_shift_pp)} pp</strong>
+    (nationally +${fmt2(X.national_shift_pp)} pp), and it <strong>fell in ${pct0(X.share_counties_ma_fell)} of counties</strong>. In
+    ${rev.length} states the median county moved away from MA, led by ${rev.slice(0, 3).map(r => `${r.state_name} (${sgn(r.shift_pp, fmt2)} pp)`).join(", ")}.</p>`;
+  document.getElementById("card-scored").hidden = false;
+  table("t-scored", [{ h: "Outlook", f: r => r.outlook }, { h: "Counties", num: 1, f: r => comma(r.counties) },
+    { h: "Forecast median", num: 1, f: r => sgn(r.predicted_median, fmt2) + " pp" }, { h: "Actual median", num: 1, f: r => sgn(r.actual_median, fmt2) + " pp" },
+    { h: "Switched faster than median", num: 1, f: r => pct0(r.share_above_median) }, { h: "MA share fell", num: 1, f: r => pct0(r.share_ma_fell) }], R.scored.outlook);
+  const o = Object.fromEntries(R.scored.outlook.map(r => [r.outlook, r]));
+  const F = document.getElementById("f-scored"); F.hidden = false;
+  F.innerHTML = `<b>Finding</b>The forecast got the direction right but not the size. Counties called "ahead" beat the median
+    ${pct0(o["Ahead of the median county"].share_above_median)} of the time and those called "behind" fell short
+    ${pct0(1 - o["Behind the median county"].share_above_median)} of the time, but rank accuracy dropped to
+    <strong>${fmt2(X.blend_spearman)}</strong> from ${fmt2(X.backtest_latest_blend_spearman)} the season before. Leaving out the ${rev.length}
+    states that reversed lifts it to ${fmt2(X.blend_spearman_excl_reversed_states)}, a check chosen after seeing the outcome.
+    Last year's switching could not foresee state-wide pullbacks.`;
+}
 
 /* ---------- 07 original decline model ---------- */
 function decline() {
@@ -681,7 +743,7 @@ function renderAll() {
   if (!document.documentElement.clientWidth) return;   // hidden pane: wait for a width
   enroll(); wave(); drawMap(); saturation(); correlates(); states(); backtest(); decline();
 }
-hero(); mapButtons(); outlook();
+hero(); mapButtons(); scored(); outlook();
 fetch(MAP_TOPO).then(r => r.json()).then(t => { topo = t; drawMap(); })
   .catch(() => { document.getElementById("c-map").innerHTML = '<div class="loading">The county map could not be loaded.</div>'; });
 // Draw now if the page has a width; redraw when the width changes (including a

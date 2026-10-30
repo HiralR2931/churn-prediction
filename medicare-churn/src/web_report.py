@@ -19,9 +19,17 @@ def _records(df: pd.DataFrame, digits: int = 3) -> list[dict]:
     return json.loads(df.round(digits).to_json(orient="records"))
 
 
-def _county_map(t: pd.DataFrame) -> dict:
-    """Per-county switching history, one value per window, for the map."""
-    d = t[t["base_year"] >= MAP_FIRST_YEAR]
+def _county_map(t: pd.DataFrame, actual: pd.DataFrame | None = None) -> dict:
+    """Per-county switching history, one value per window, for the map.
+
+    With ``actual`` (the scored season, from the newer CMS release) that season
+    is appended as the last year.
+    """
+    d = t[t["base_year"] >= MAP_FIRST_YEAR][["fips", "base_year", "shift_pp", "eligible"]]
+    if actual is not None:
+        d = pd.concat([d.dropna(subset=["shift_pp"]),
+                       actual.assign(base_year=C.MA_FORECAST_YEAR)
+                       .rename(columns={"actual_shift_pp": "shift_pp"})[d.columns]])
     years = sorted(d.dropna(subset=["shift_pp"])["base_year"].unique().tolist())
     wide = d.pivot_table(index="fips", columns="base_year", values="shift_pp").reindex(columns=years)
     # Each season uses that December's size, as the statistics do.
@@ -34,10 +42,11 @@ def _county_map(t: pd.DataFrame) -> dict:
         counties[fips] = {
             "n": names.get(fips, fips),
             # null: no data; "s": under the size cutoff that season; else the shift
-            "s": [None if pd.isna(v) else ("s" if not elig.loc[fips, y] else round(float(v), 2))
+            "s": [None if pd.isna(v) else ("s" if not bool(elig.loc[fips, y]) else round(float(v), 2))
                   for y, v in zip(years, row.to_numpy())],
         }
-    return {"years": [int(y) for y in years], "counties": counties}
+    return {"years": [int(y) for y in years], "counties": counties,
+            "scored_year": C.MA_FORECAST_YEAR if actual is not None else None}
 
 
 def _decline_section(labelled: pd.DataFrame, metrics: dict) -> dict:
@@ -52,12 +61,17 @@ def _decline_section(labelled: pd.DataFrame, metrics: dict) -> dict:
     return {"metrics": {k: metrics[k] for k in keep}, "by_size": _records(by_size)}
 
 
-def build_site(ma: dict, labelled: pd.DataFrame, decline_metrics: dict) -> list:
+def build_site(ma: dict, labelled: pd.DataFrame, decline_metrics: dict,
+               scored: dict | None = None) -> list:
     """Write ``site/data.js``. Returns written paths."""
     C.SITE_DIR.mkdir(exist_ok=True)
     fc = ma["forecast"][["fips", "county", "state", "TOT_BENES", "ma_ratio",
                          "predicted_rel_shift_pp", "outlook"]].copy()
     fc["ma_ratio"] *= 100
+    if scored:
+        act = scored["actual"].set_index("fips")
+        fc["actual"] = fc["fips"].map(act["actual_rel_pp"].where(act["eligible"]))
+        fc["actual_shift"] = fc["fips"].map(act["actual_shift_pp"].where(act["eligible"]))
     payload = {
         "summary": ma["summary"],
         "national": _records(ma["national"]),
@@ -68,9 +82,15 @@ def build_site(ma: dict, labelled: pd.DataFrame, decline_metrics: dict) -> list:
         "forecast": _records(fc.rename(columns={"TOT_BENES": "benes",
                                                 "ma_ratio": "ma_share",
                                                 "predicted_rel_shift_pp": "pred"}), 2),
-        "map": _county_map(ma["table"]),
+        "map": _county_map(ma["table"], scored["actual"] if scored else None),
         "min_benes": C.MA_MIN_BENES,
         "decline": _decline_section(labelled, decline_metrics),
+        "scored": None if not scored else {
+            "summary": scored["summary"],
+            "methods": _records(scored["methods"]),
+            "outlook": _records(scored["outlook"]),
+            "states": _records(scored["states"]),
+        },
     }
     path = C.SITE_DIR / "data.js"
     path.write_text("window.REPORT = " + json.dumps(payload, separators=(",", ":")) + ";\n")

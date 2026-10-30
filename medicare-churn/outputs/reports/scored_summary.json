@@ -1,0 +1,99 @@
+{
+  "season": "Dec 2025 -> Feb 2026",
+  "cms_release": "July 2026",
+  "ma_share_dec_revised": 50.75,
+  "ma_share_feb": 50.984,
+  "national_shift_pp": 0.235,
+  "county_median_shift_pp": 0.579,
+  "counties_scored": 2971,
+  "share_counties_ma_fell": 0.217,
+  "reversed_states": [
+    {
+      "state": "VT",
+      "state_name": "Vermont",
+      "shift_pp": -18.13
+    },
+    {
+      "state": "WY",
+      "state_name": "Wyoming",
+      "shift_pp": -5.73
+    },
+    {
+      "state": "NH",
+      "state_name": "New Hampshire",
+      "shift_pp": -4.65
+    },
+    {
+      "state": "ID",
+      "state_name": "Idaho",
+      "shift_pp": -2.69
+    },
+    {
+      "state": "MN",
+      "state_name": "Minnesota",
+      "shift_pp": -2.31
+    },
+    {
+      "state": "SD",
+      "state_name": "South Dakota",
+      "shift_pp": -0.93
+    },
+    {
+      "state": "IA",
+      "state_name": "Iowa",
+      "shift_pp": -0.48
+    },
+    {
+      "state": "CT",
+      "state_name": "Connecticut",
+      "shift_pp": -0.37
+    },
+    {
+      "state": "CA",
+      "state_name": "California",
+      "shift_pp": -0.33
+    },
+    {
+      "state": "WI",
+      "state_name": "Wisconsin",
+      "shift_pp": -0.29
+    },
+    {
+      "state": "CO",
+      "state_name": "Colorado",
+      "shift_pp": -0.26
+    },
+    {
+      "state": "ME",
+      "state_name": "Maine",
+      "shift_pp": -0.12
+    },
+    {
+      "state": "RI",
+      "state_name": "Rhode Island",
+      "shift_pp": -0.09
+    },
+    {
+      "state": "MA",
+      "state_name": "Massachusetts",
+      "shift_pp": -0.09
+    },
+    {
+      "state": "MT",
+      "state_name": "Montana",
+      "shift_pp": -0.04
+    }
+  ],
+  "blend_spearman": 0.196,
+  "blend_spearman_excl_reversed_states": 0.306,
+  "blend_top10_hit": 0.222,
+  "blend_bottom10_hit": 0.131,
+  "backtest_latest_blend_spearman": 0.416,
+  "best_method_scored": "Gradient boosting",
+  "revisions": {
+    "counties_compared": 3225,
+    "share_counties_total_revised": 0.974,
+    "median_total_revision_pct": 0.307,
+    "median_ma_share_revision_pp": -0.147
+  }
+}

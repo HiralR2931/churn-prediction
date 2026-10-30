@@ -5,11 +5,12 @@
 Medicare Advantage (MA), the private-plan alternative to Original Medicare, passed
 half of all beneficiaries in December 2024. This project measures that shift
 county by county from 13 years of CMS enrollment data. It finds that the yearly
-switching wave peaked in 2020 and has since fallen by more than two thirds, and
-it tests which methods can forecast where switching will be fastest next.
+switching wave peaked in 2020 and has since fallen by more than two thirds. It
+tests which methods can forecast where switching will be fastest next, and then
+scores its own Dec 2025 → Feb 2026 forecast against data CMS published later.
 
 **[Open the interactive report →](https://hiralr2931.github.io/churn-prediction/)**
-It has a county map for every season, the backtest, and a searchable Dec 2025 → Feb 2026 outlook.
+It has a county map for every season, the backtest, and the scored Dec 2025 → Feb 2026 forecast, searchable by county.
 
 *Started as a hackathon project.* Part of the [churn-prediction](../) repo.
 
@@ -21,13 +22,14 @@ It has a county map for every season, the backtest, and a searchable Dec 2025 �
 
 | | Finding | Number |
 |---|---|---|
-| 1 | **MA became the majority.** Its share of beneficiaries rose every year, and MA passed Original Medicare in Dec 2024. | 28.4% (2013) → **51.0%** (2025) |
+| 1 | **MA became the majority.** Its share of beneficiaries rose every year, and MA passed Original Medicare in Dec 2024. | 28.4% (Dec 2013) → **51.0%** (Feb 2026) |
 | 2 | **Switching stalled.** The median county's December → February gain in MA share peaked in 2020, then fell. | +3.1 pp (2020) → **+0.9 pp** (2024) |
 | 3 | **The slowdown was nearly universal.** Counties that switched more slowly than the season before. In 9% of counties MA share fell. | **87%** of 2,963 counties |
 | 4 | **Switching follows an adoption curve.** It is slowest where MA is rare, fastest at 20–40% MA share, and well below average once MA passes 70%. | **−1.3 pp** vs. the median county above 70% |
 | 5 | **Lower-income counties switch faster.** Low-income-subsidy share is the strongest correlate, positive in all 10 seasons; older (85+) counties switch more slowly in all 10. | Median Spearman ρ **+0.31** / −0.20 |
 | 6 | **Vermont reversed.** It was the only state where the median county's MA share fell in Dec 2024 → Feb 2025. | **−1.8 pp** |
-| 7 | **A simple blend beats machine learning.** Ranking counties by half their own last season plus half their state's beat gradient boosting on 12 features. | Spearman **0.53** vs. 0.47 |
+| 7 | **A simple blend beats machine learning in the backtest.** Ranking counties by half their own last season plus half their state's beat gradient boosting on 12 features. | Spearman **0.53** vs. 0.47 |
+| 8 | **Scored on real data, the forecast was weak.** In the next season, MA share fell in 22% of counties and in the median county of 15 states. Rank accuracy dropped to 0.20, though the outlook groups landed in the right order. | **0.20** vs. 0.42 the season before |
 
 ![The adoption curve and county traits linked to switching](docs/02_where_and_who.png)
 
@@ -66,7 +68,8 @@ insurance market. Demographics add little on top. Every method scored lower in
 the 2023 and 2024 seasons, when the national slowdown began. The blend is used
 for the **Dec 2025 → Feb 2026 outlook** (2,971 counties:
 370 ahead of the median county, 446 behind), saved in
-`outputs/reports/ma_forecast_dec2025_feb2026.csv`.
+`outputs/reports/ma_forecast_dec2025_feb2026.csv`. That forecast has since been
+scored on real data (next section).
 
 <details>
 <summary>State by state: switching slowed in 52 of 53 states and territories</summary>
@@ -74,6 +77,44 @@ for the **Dec 2025 → Feb 2026 outlook** (2,971 counties:
 ![Median county switching by state, previous vs latest season](docs/03_states.png)
 
 </details>
+
+## Scored on real data: Dec 2025 → Feb 2026
+
+The outlook was built from data ending December 2025. CMS's July 2026 release
+then published February 2026. `src/fetch_scoring_data.py` pulls both months from
+that release through the CMS data API. December is refetched because CMS revised
+it: totals rose 0.3% and MA share fell 0.15 pp in the median county, which puts
+the national MA share at 50.8% instead of 51.0%.
+
+**What happened.** The stall deepened. The median county's MA share rose only
+**+0.58 pp** (nationally +0.23 pp), down from +0.91 pp. It **fell in 22% of counties**,
+up from 9%. In 15 states the median county moved away from MA, led by Vermont
+(−18.1 pp), Wyoming (−5.7 pp), New Hampshire (−4.6 pp), Idaho (−2.7 pp) and
+Minnesota (−2.3 pp). The data shows the reversals but not their causes.
+
+![The 15 states where switching reversed in Dec 2025 → Feb 2026](docs/05_reversals.png)
+
+**How the forecast did.** Every method weakened sharply:
+
+| Method | Scored Spearman | Backtest average |
+|---|---|---|
+| Gradient boosting | **0.23** | 0.47 |
+| County's last season | 0.21 | 0.52 |
+| Blend (the published outlook) | 0.20 | 0.53 |
+| State's last season | 0.13 | 0.43 |
+
+| Outlook group | Counties | Forecast median | Actual median | Switched faster than the median county |
+|---|---|---|---|---|
+| Ahead of the median county | 370 | +0.72 pp | +0.23 pp | 62% |
+| Near the median county | 2,155 | +0.02 pp | +0.03 pp | 52% |
+| Behind the median county | 446 | −0.79 pp | −0.28 pp | 29% |
+
+The direction held: "ahead" counties beat the median 62% of the time, and
+"behind" counties fell short 71% of the time. The size of the effect did not hold.
+With the 15 reversing states left out, rank accuracy rises to 0.31. Those states were
+chosen after seeing the outcome, so this is context, not a result. The backtest's lesson
+was that switching repeats from last season. This season shows its limit: last season
+can't foresee a state-wide pullback.
 
 ## The original question: net enrollment decline
 
@@ -98,6 +139,7 @@ Two lessons from building it shaped the project:
 ```bash
 pip install -r requirements.txt
 # download the CMS extract (see Data note) to data/medicare_enrollment_2013_2025.csv
+python -m src.fetch_scoring_data   # optional: Dec 2025 + Feb 2026 from the CMS API, to score the outlook
 python run_pipeline.py
 python -m http.server --directory site 8000   # then open http://localhost:8000
 ```
@@ -122,6 +164,8 @@ medicare-churn/
 │   ├── data_cleaning.py         # load, resolve suppressed cells, validate
 │   ├── feature_engineering.py   # composition ratios + trend features
 │   ├── ma_switching.py          # switching table, findings, backtest, outlook
+│   ├── fetch_scoring_data.py    # Dec 2025 + Feb 2026 from the CMS data API
+│   ├── scoring.py               # score the outlook against what CMS published
 │   ├── charts.py                # README charts (docs/*.png)
 │   ├── web_report.py            # data for the interactive report (site/data.js)
 │   ├── churn_label.py           # net-decline label + temporal split

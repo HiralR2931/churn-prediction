@@ -9,7 +9,7 @@ individual Netflix subscribers.
 
 | Project | Scale | Data | Model | Headline result |
 |---|---|---|---|---|
-| [The Medicare Advantage Stall](medicare-churn/) · [interactive report](https://hiralr2931.github.io/churn-prediction/) | 3,236 U.S. counties, 2013–2025 | CMS Medicare Monthly Enrollment (564k rows) | Walk-forward backtest of 4 forecasters, Random Forest, PySpark on Databricks | MA passed 50% of beneficiaries; yearly switching fell from +3.1 to +0.9 pp; a county + state blend beats gradient boosting (Spearman 0.53 vs 0.47) |
+| [The Medicare Advantage Stall](medicare-churn/) · [interactive report](https://hiralr2931.github.io/churn-prediction/) | 3,236 U.S. counties, 2013–2025 | CMS Medicare Monthly Enrollment (564k rows) | Walk-forward backtest of 4 forecasters, Random Forest, PySpark on Databricks | MA passed 50% of beneficiaries; yearly switching fell from +3.1 to +0.9 pp; the Dec 2025 → Feb 2026 forecast, scored on later CMS data, caught the direction but not the state-wide reversals (Spearman 0.20) |
 | [The Six-Line Churn Rule](netflix-churn/) · [interactive report](https://hiralr2931.github.io/churn-prediction/netflix/) | 5,000 subscribers | Kaggle Netflix churn dataset (synthetic, 12 features) | 6 classifiers + a points scorecard, repeated 5-fold CV | A six-condition scorecard matches 95.5% of outcomes; gradient boosting reaches 99.1%, and only wins near the scorecard's cut-off |
 
 ![Medicare Advantage passed Original Medicare while the yearly switching wave fell](medicare-churn/docs/01_tipping_point.png)
@@ -23,7 +23,8 @@ county-level CMS data and resolves ~3.2M suppressed cells. It then measures
 each county's December → February move from Original Medicare to Medicare
 Advantage, and finds the adoption curve and the 2024 stall. Four forecasting
 methods are compared in a walk-forward backtest, and the pipeline publishes an
-interactive D3 report with a county map. An earlier net-decline Random Forest
+interactive D3 report with a county map. The 2026 forecast is then scored
+against February 2026 data from a later CMS release. An earlier net-decline Random Forest
 is kept alongside, with a feature bug fixed. The cleaning and feature stage also
 runs in PySpark on Databricks with Delta tables.
 

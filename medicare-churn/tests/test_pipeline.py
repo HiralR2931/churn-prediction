@@ -140,3 +140,36 @@ def test_decline_label_and_temporal_split():
     assert (train["base_year"] < C.TEST_YEAR).all()
     assert (test["base_year"] == C.TEST_YEAR).all()
     assert (fc["base_year"] == C.PREDICT_FROM_YEAR).all()
+
+
+# --------------------------------------------------------------------------- #
+# Scoring the forecast against a later release
+# --------------------------------------------------------------------------- #
+def test_scoring_measures_the_outcome_from_one_release(tmp_path, monkeypatch):
+    from src import scoring
+
+    rows = []
+    for fips, tot, dec_ma, feb_ma in [("50001", 2000, 800, 860), ("50003", 3000, 900, 870), ("50005", 500, 100, 150)]:
+        rows.append(_raw_row(2025, "December", fips, str(tot), str(tot - dec_ma), str(dec_ma)))
+        rows.append(_raw_row(2026, "February", fips, str(tot), str(tot - feb_ma), str(feb_ma)))
+    rows.append(_raw_row(2025, "December", "     ", "10000", "5000", "5000", geo="National"))
+    rows.append(_raw_row(2026, "February", "     ", "10000", "4900", "5100", geo="National"))
+    path = tmp_path / "scoring.csv"
+    pd.DataFrame(rows).to_csv(path, index=False)
+    monkeypatch.setattr(scoring.C, "SCORING_CSV", path)
+
+    actual, national = scoring.actual_outcome()
+    a = actual.set_index("fips")
+    assert a.loc["50001", "actual_shift_pp"] == pytest.approx(3.0)      # 40% -> 43%
+    assert a.loc["50003", "actual_shift_pp"] == pytest.approx(-1.0)     # 30% -> 29%
+    assert not a.loc["50005", "eligible"]                              # under 1,000 people
+    # relative to the median of eligible counties only (3.0 and -1.0 -> median 1.0)
+    assert a.loc["50001", "actual_rel_pp"] == pytest.approx(2.0)
+    assert national["national_shift_pp"] == pytest.approx(1.0)          # 50% -> 51%
+
+
+def test_scoring_is_skipped_without_outcome_data(tmp_path, monkeypatch):
+    from src import scoring
+
+    monkeypatch.setattr(scoring.C, "SCORING_CSV", tmp_path / "missing.csv")
+    assert scoring.run_all({"table": None, "forecast": None}) is None

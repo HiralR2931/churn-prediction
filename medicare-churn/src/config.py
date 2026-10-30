@@ -111,6 +111,13 @@ MA_MIN_BENES = 1000
 MA_FIRST_YEAR = 2015            # needs two prior windows for the lag features
 MA_BACKTEST_YEARS = [2019, 2020, 2021, 2022, 2023, 2024]
 MA_FORECAST_YEAR = 2025         # Dec 2025 -> Feb 2026
+
+# Scoring the forecast once CMS publishes the outcome month. The data API
+# dataset id belongs to one release (here: through July 2026); CMS issues a
+# new id with each release, listed in https://data.cms.gov/data.json.
+CMS_API_DATASET = "d7fabe1e-d19b-4333-9eff-e80e0643f2fd"
+CMS_API_RELEASE = "July 2026"
+SCORING_CSV = DATA_DIR / "scoring_dec2025_feb2026.csv"
 # Weight on the county's own last window vs its state's last window.
 MA_BLEND_WEIGHT = 0.5
 MA_DEMOGRAPHICS = [
